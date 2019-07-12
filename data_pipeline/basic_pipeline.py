@@ -6,6 +6,9 @@ try:
 except ImportError:
     raise ImportError("Please install DALI from https://www.github.com/NVIDIA/DALI to run this example.")
 
+import logging
+
+pipeline_logger = logging.getLogger(__name__ + '.data_pipeline')
 
 # Basic DALI accelerated pipeline
 # Does a random rotate and crop
@@ -20,6 +23,7 @@ class HybridTrainPipe(Pipeline):
                                                     random_aspect_ratio=[0.8, 1.25],
                                                     random_area=[0.1, 1.0],
                                                     num_attempts=100)
+            
         else:
             dali_device = "gpu"
             # This padding sets the size of the internal nvJPEG buffers to be able to handle all images from full-sized ImageNet
@@ -28,6 +32,7 @@ class HybridTrainPipe(Pipeline):
                                                       random_aspect_ratio=[0.8, 1.25],
                                                       random_area=[0.1, 1.0],
                                                       num_attempts=100)
+
         self.res = ops.Resize(device=dali_device, resize_x=crop, resize_y=crop, interp_type=types.INTERP_TRIANGULAR)
         self.cmnp = ops.CropMirrorNormalize(device="gpu",
                                             output_dtype=types.FLOAT,
@@ -45,7 +50,7 @@ class HybridTrainPipe(Pipeline):
         self.rotate_range = ops.Uniform(range = (-7, 7)) # 7 degrees either way
         self.rotate_coin = ops.CoinFlip(probability=0.075) # 7.5% chance
 
-        print('DALI "{0}" variant'.format(dali_device))
+        pipeline_logger.info('DALI "{0}" variant'.format(dali_device))
 
     def define_graph(self):
         # for mirror
