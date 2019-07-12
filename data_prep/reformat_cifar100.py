@@ -7,11 +7,11 @@ import imageio
 # this script unpacks the cifar100 pickles into the format:
 ## data/cifar-100-oythin/train/<class>/file_x.jpg
 
-data_dir = '../data'
-source_data_dir = data_dir + '/cifar-100-python'
-train_file = source_data_dir + '/train'
-test_file = source_data_dir + '/test'
-meta_file = source_data_dir + '/meta'
+data_dir = os.path.join('..','cv_data')
+source_data_dir = os.path.join(data_dir, 'cifar-100-python')
+train_file = os.path.join(source_data_dir, 'train')
+test_file = os.path.join(source_data_dir, 'test')
+meta_file = os.path.join(source_data_dir, 'meta')
 
 
 def unpickle(file):

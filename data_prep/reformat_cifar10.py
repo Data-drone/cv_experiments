@@ -9,33 +9,13 @@
 import os
 import glob
 
-data_dir = os.path.join('..','data')
+data_dir = os.path.join('..','cv_data')
 source_data_dir = os.path.join(data_dir, 'cifar10')
 train_files = os.path.join(source_data_dir, 'train')
 test_files = os.path.join(source_data_dir, 'test')
 labels = os.path.join(source_data_dir, 'labels.txt')
 
-# create the train/test folders
-category_list = [line. rstrip('\n') for line in open(labels)]
 
-
-for item in category_list:
-    create_path_train = os.path.join(train_files, item)
-    create_path_test = os.path.join(test_files, item)
-
-    try:
-        os.mkdir(create_path_train)
-    except FileExistsError:
-        print('{0} already exists'.format(create_path_train))
-
-    try:
-        os.mkdir(create_path_test)
-    except FileExistsError:
-        print('{0} already exists'.format(create_path_test))
-
-# get the list of files then move them
-train_images = glob.glob(os.path.join(train_files, '*.png'))
-test_images = glob.glob(os.path.join(test_files, '*.png'))
 
 # loop through files and move them one by one
 def move_file(image_list: list, categories: list) -> None:
@@ -52,6 +32,31 @@ def move_file(image_list: list, categories: list) -> None:
         os.rename(image_file,new_path)
 
 # move the files
-move_file(train_images, category_list)
-move_file(test_images, category_list)
+def main():
+    # create the train/test folders
+    category_list = [line. rstrip('\n') for line in open(labels)]
+
+    for item in category_list:
+        create_path_train = os.path.join(train_files, item)
+        create_path_test = os.path.join(test_files, item)
+
+        try:
+            os.mkdir(create_path_train)
+        except FileExistsError:
+            print('{0} already exists'.format(create_path_train))
+
+        try:
+            os.mkdir(create_path_test)
+        except FileExistsError:
+            print('{0} already exists'.format(create_path_test))
+
+# get the list of files then move them
+    train_images = glob.glob(os.path.join(train_files, '*.png'))
+    test_images = glob.glob(os.path.join(test_files, '*.png'))
+
+    move_file(train_images, category_list)
+    move_file(test_images, category_list)
     
+    
+if __name__ == '__main__':
+    main()
