@@ -108,9 +108,11 @@ def accuracy(output, target, topk=(1,)):
     return res
 
 def main():
+    
     """
     main training loop function
     """
+
     # distributed training variable
     args.world_size = 1
     

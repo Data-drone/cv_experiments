@@ -50,5 +50,5 @@ class TinyDarknet(nn.Module):
         out = out.view(out.size(0), -1)
         return F.log_softmax(self.linear(out))
 
-def tinydarknetv3(**kwargs):
+def tinydarknetv3(pretrained=False, **kwargs):
     return TinyDarknet(num_blocks=3,**kwargs)
