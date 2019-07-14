@@ -62,6 +62,12 @@ parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
 parser.add_argument('--fp16', action='store_true',
                     help='Run model fp16 mode.')
+parser.add_argument('--static-loss-scale', type=float, default=1,
+                    help='Static loss scale, positive power of 2 values can improve fp16 convergence.')
+parser.add_argument('--dynamic-loss-scale', action='store_true',
+                    help='Use dynamic loss scaling.  If supplied, this argument supersedes ' +
+                    '--static-loss-scale.')
+
 
 # keep true unless we vary image sizes
 cudnn.benchmark = True
@@ -69,3 +75,107 @@ cudnn.benchmark = True
 args = parser.parse_args()
 wandb.config.update(args)
 
+# make apex optional - we aren't using distributed
+if args.fp16: #or args.distributed:
+    try:
+        #from apex.parallel import DistributedDataParallel as DDP
+        from apex.fp16_utils import *
+    except ImportError:
+        raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this script.")
+
+
+
+def main():
+    
+    if args.fp16:
+        assert torch.backends.cudnn.enabled, "fp16 mode requires cudnn backend to be enabled."
+
+    if args.static_loss_scale != 1.0:
+        if not args.fp16:
+            print("Warning:  if --fp16 is not used, static_loss_scale will be ignored.")
+
+    # TO DO add pretrained handling to local models
+    if args.pretrained:
+        print("=> using pre-trained model '{}'".format(args.arch))
+        if args.arch in model_names:
+            model = models.__dict__[args.arch](pretrained=True)
+        elif args.arch in local_model_names:
+            model = local_models.__dict__[args.arch](pretrained=True)
+    else:
+        print("=> creating new model '{}'".format(args.arch))
+        if args.arch in model_names:
+            model = models.__dict__[args.arch](pretrained=False)
+        elif args.arch in local_model_names:
+            model = local_models.__dict__[args.arch](pretrained=False)
+
+    # exception for inception v3 as per https://stackoverflow.com/questions/53476305/attributeerror-tuple-object-has-no-attribute-log-softmax#
+    if args.arch == 'inception_v3':
+        model.aux_logits=False
+
+    model = model.cuda()
+    if args.fp16:
+        model = network_to_half(model)
+
+    # define loss function (criterion) and optimizer
+    #### Edit point for tuning details ####
+    criterion = nn.CrossEntropyLoss().cuda()
+
+    optimizer = torch.optim.SGD(model.parameters(), args.lr,
+                                momentum=args.momentum,
+                                weight_decay=args.weight_decay)
+    
+    if args.fp16:
+        optimizer = FP16_Optimizer(optimizer,
+                                   static_loss_scale=args.static_loss_scale,
+                                   dynamic_loss_scale=args.dynamic_loss_scale)
+
+
+    traindir = args.data[0]
+    valdir= args.data[1]
+
+
+    # code specific to the basic data_pipeline
+    if(args.arch == "inception_v3"):
+        crop_size = 299
+        val_size = 320 # I chose this value arbitrarily, we can adjust.
+    else:
+        crop_size = 224
+        val_size = 256
+
+    pipe = HybridTrainPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, data_dir=traindir, crop=crop_size, dali_cpu=args.dali_cpu)
+    pipe.build()
+    train_loader = DALIClassificationIterator(pipe, size=int(pipe.epoch_size("Reader") / args.world_size))
+
+    pipe = HybridValPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, data_dir=valdir, crop=crop_size, size=val_size)
+    pipe.build()
+    val_loader = DALIClassificationIterator(pipe, size=int(pipe.epoch_size("Reader") / args.world_size))
+
+    model.train()
+
+    for epoch in range(0, 90):
+
+        for i, data in enumerate(train_loader):
+            input = data[0]["data"]
+            target = data[0]["label"].squeeze().cuda().long()
+            train_loader_len = int(train_loader._size / args.batch_size)
+
+            input_var = Variable(input)
+            target_var = Variable(target)
+
+            output = model(input_var)
+            loss = criterion(output, target_var)
+
+            optimizer.zero_grad()
+
+            if args.fp16:
+                optimizer.backward(loss)
+            else:
+                loss.backward()
+            optimizer.step()
+
+            torch.cuda.synchronize()
+        
+            wandb.log({"epoch" epoch, "loss": loss})
+
+if __name__ == '__main__':
+    main()
