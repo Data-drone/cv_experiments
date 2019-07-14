@@ -19,10 +19,15 @@ import models as local_models
 
 # load pipelines
 from data_pipeline.basic_pipeline import HybridTrainPipe, HybridValPipe
+try:
+    from nvidia.dali.plugin.pytorch import DALIClassificationIterator
+except ImportError:
+    raise ImportError("Please install DALI from https://www.github.com/NVIDIA/DALI to run this example.")
+
 
 train_logger = logging.getLogger(__name__)
 
-wandb.init(project="image_classification")
+#wandb.init(project="image_classification")
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -67,13 +72,16 @@ parser.add_argument('--static-loss-scale', type=float, default=1,
 parser.add_argument('--dynamic-loss-scale', action='store_true',
                     help='Use dynamic loss scaling.  If supplied, this argument supersedes ' +
                     '--static-loss-scale.')
+parser.add_argument('--local_rank', default=0, type=int,
+        help='Used for multi-process training. Can either be manually set ' +
+            'or automatically set by using \'python -m multiproc\'.')
 
 
 # keep true unless we vary image sizes
 cudnn.benchmark = True
 
 args = parser.parse_args()
-wandb.config.update(args)
+#wandb.config.update(args)
 
 # make apex optional - we aren't using distributed
 if args.fp16: #or args.distributed:
@@ -84,8 +92,27 @@ if args.fp16: #or args.distributed:
         raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this script.")
 
 
+def accuracy(output, target, topk=(1,)):
+    """Computes the precision@k for the specified values of k"""
+    maxk = max(topk)
+    batch_size = target.size(0)
+
+    _, pred = output.topk(maxk, 1, True, True)
+    pred = pred.t()
+    correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+    res = []
+    for k in topk:
+        correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
+        res.append(correct_k.mul_(100.0 / batch_size))
+    return res
 
 def main():
+    """
+    main training loop function
+    """
+    # distributed training variable
+    args.world_size = 1
     
     if args.fp16:
         assert torch.backends.cudnn.enabled, "fp16 mode requires cudnn backend to be enabled."
@@ -142,18 +169,21 @@ def main():
         crop_size = 224
         val_size = 256
 
-    pipe = HybridTrainPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, data_dir=traindir, crop=crop_size, dali_cpu=args.dali_cpu)
+    pipe = HybridTrainPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
+                            data_dir=traindir, crop=crop_size, dali_cpu=False)
     pipe.build()
     train_loader = DALIClassificationIterator(pipe, size=int(pipe.epoch_size("Reader") / args.world_size))
 
-    pipe = HybridValPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, data_dir=valdir, crop=crop_size, size=val_size)
+    pipe = HybridValPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
+                            data_dir=valdir, crop=crop_size, size=val_size)
     pipe.build()
     val_loader = DALIClassificationIterator(pipe, size=int(pipe.epoch_size("Reader") / args.world_size))
 
     model.train()
 
-    for epoch in range(0, 90):
+    for epoch in range(0, 10):
 
+        # train loop
         for i, data in enumerate(train_loader):
             input = data[0]["data"]
             target = data[0]["label"].squeeze().cuda().long()
@@ -165,6 +195,10 @@ def main():
             output = model(input_var)
             loss = criterion(output, target_var)
 
+            reduced_loss = loss.data
+
+            prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
+
             optimizer.zero_grad()
 
             if args.fp16:
@@ -174,8 +208,21 @@ def main():
             optimizer.step()
 
             torch.cuda.synchronize()
+            
+            if i % 20 == 0 and i > 1: 
+                stats = {"epoch": epoch, "loss": reduced_loss.cpu(), "Train Top-1": prec1.cpu(), 
+                            "Train Top-5": prec5.cpu()}
+                print('[{0} / {1}]'.format(i, train_loader_len))
+                print(stats)
+            
+            #wandb.log({"epoch" epoch, "loss": loss.cpu(), "Train Top-1": prec1.cpu(), "Train Top-5": prec5.cpu()})
         
-            wandb.log({"epoch" epoch, "loss": loss})
+        # do I need a validate loop here (how should we log losses?)
+
+        
+        # for each epoch need to reset
+        train_loader.reset()
+        val_loader.reset()
 
 if __name__ == '__main__':
     main()
