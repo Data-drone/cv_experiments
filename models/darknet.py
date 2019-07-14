@@ -1,16 +1,18 @@
 # Darknet backbone as used in yolo network
+# follows torchvision model def format
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from layers import MaxPoolStride1, ConvBN, DarknetBlock, ConvPool
+from .layers import MaxPoolStride1, ConvBN, DarknetBlock, ConvPool
 
 import logging
 
 models_logger = logging.getLogger(__name__ + '.models.darknet')
 
+__all__ = ['TinyDarknet', 'tinydarknetv3']
 
-class TinyYoloBackbone(nn.Module):
+class TinyDarknet(nn.Module):
     # replicates tiny yolov3 backbone
     def __init__(self, num_blocks, num_classes=1000):
         super().__init__()
@@ -47,3 +49,6 @@ class TinyYoloBackbone(nn.Module):
         out = F.adaptive_avg_pool2d(out, 1)
         out = out.view(out.size(0), -1)
         return F.log_softmax(self.linear(out))
+
+def tinydarknetv3(**kwargs):
+    return TinyDarknet(num_blocks=3,**kwargs)

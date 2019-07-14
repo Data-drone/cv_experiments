@@ -4,3 +4,4 @@ nvidia-dali==0.10.0
 opencv==4.0.0
 pytorch==1.1.0
 torchvision==0.3.0
+wandb==0.8.5
