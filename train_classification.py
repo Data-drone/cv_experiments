@@ -16,6 +16,7 @@ import torchvision.models as models
 import wandb
 import logging
 import models as local_models
+from utils import AverageMeter
 
 # load pipelines
 from data_pipeline.basic_pipeline import HybridTrainPipe, HybridValPipe
@@ -27,7 +28,7 @@ except ImportError:
 
 train_logger = logging.getLogger(__name__)
 
-#wandb.init(project="image_classification")
+wandb.init(project="image_classification")
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -113,13 +114,14 @@ def accuracy(output, target, topk=(1,)):
         correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
+    
 
 def train(train_loader, model, criterion, optimizer, epoch):
 
     model.train()
-    top1 = []
-    top5 = []
-    loss_list = []
+    top1 = AverageMeter()
+    top5 = AverageMeter()
+    loss_list = AverageMeter()
 
     for i, data in enumerate(train_loader):
         input = data[0]["data"]
@@ -147,9 +149,9 @@ def train(train_loader, model, criterion, optimizer, epoch):
         torch.cuda.synchronize()
 
         # hold metrics
-        top1.append(to_python_float(prec1.cpu()))
-        top5.append(to_python_float(prec5.cpu()))
-        loss_list.append(to_python_float(reduced_loss.cpu()))
+        top1.update(to_python_float(prec1), input.size(0) )
+        top5.update(to_python_float(prec5), input.size(0) )
+        loss_list.update(to_python_float(reduced_loss), input.size(0) )
         
         if i % 20 == 0 and i > 1: 
             stats = {"epoch": epoch, "loss": reduced_loss.cpu(), "Train Top-1": prec1.cpu(), 
@@ -157,7 +159,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
             print('[{0} / {1}]'.format(i, train_loader_len))
             print(stats)
        
-    #wandb.log("epoch": epoch, "loss": )
+    wandb.log({"epoch": epoch, "loss": loss_list.avg(), "train_top1": top1.avg(),  "train_top5": top5.avg()})
 
         
 
@@ -165,9 +167,9 @@ def train(train_loader, model, criterion, optimizer, epoch):
 def validate(val_loader, model, criterion, epoch):
     
     model.eval()
-    top1 = []
-    top5 = []
-    loss_list = []
+    top1 = AverageMeter()
+    top5 = AverageMeter()
+    loss_list = AverageMeter()
 
     for i, data in enumerate(val_loader):
         input = data[0]["data"]
@@ -189,15 +191,17 @@ def validate(val_loader, model, criterion, epoch):
         reduced_loss = loss.data
 
         # hold metrics
-        top1.append(to_python_float(prec1.cpu()))
-        top5.append(to_python_float(prec5.cpu()))
-        loss_list.append(to_python_float(reduced_loss.cpu()))
+        top1.update( to_python_float(prec1), input.size(0) )
+        top5.update( to_python_float(prec5), input.size(0) )
+        loss_list.update( to_python_float(reduced_loss), input.size(0) )
 
         if i % 20 == 0 and i > 1: 
             stats = {"epoch": epoch, "loss": reduced_loss.cpu(), "Val Top-1": prec1.cpu(), 
                         "Val Top-5": prec5.cpu()}
             print('[{0} / {1}]'.format(i, val_loader_len))
             print(stats)
+
+    wandb.log({"epoch": epoch, "loss": loss_list.avg(), "val_top1": top1.avg(),  "val_top5": top5.avg()})
 
     
 
@@ -275,18 +279,13 @@ def main():
     pipe.build()
     val_loader = DALIClassificationIterator(pipe, size=int(pipe.epoch_size("Reader") / args.world_size))
 
-    
+    wandb.watch(model)
 
     for epoch in range(0, 10):
 
         # train loop
         train(train_loader, model, criterion, optimizer, epoch)
         validate(val_loader, model, criterion, epoch)
-            
-        #wandb.log({"epoch" epoch, "loss": loss.cpu(), "Train Top-1": prec1.cpu(), "Train Top-5": prec5.cpu()})
-        
-        # do I need a validate loop here (how should we log losses?)
-
         
         # for each epoch need to reset
         train_loader.reset()
