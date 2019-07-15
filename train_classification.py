@@ -82,7 +82,7 @@ parser.add_argument('--local_rank', default=0, type=int,
 cudnn.benchmark = True
 
 args = parser.parse_args()
-#wandb.config.update(args)
+wandb.config.update(args)
 
 # make apex optional - we aren't using distributed
 if args.fp16: #or args.distributed:
@@ -159,7 +159,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
             print('[{0} / {1}]'.format(i, train_loader_len))
             print(stats)
        
-    wandb.log({"epoch": epoch, "loss": loss_list.avg(), "train_top1": top1.avg(),  "train_top5": top5.avg()})
+    wandb.log({"epoch": epoch, "train_loss": loss_list.avg, "train_top1": top1.avg,  "train_top5": top5.avg})
 
         
 
@@ -201,7 +201,7 @@ def validate(val_loader, model, criterion, epoch):
             print('[{0} / {1}]'.format(i, val_loader_len))
             print(stats)
 
-    wandb.log({"epoch": epoch, "loss": loss_list.avg(), "val_top1": top1.avg(),  "val_top5": top5.avg()})
+    wandb.log({"epoch": epoch, "val_loss": loss_list.avg, "val_top1": top1.avg,  "val_top5": top5.avg})
 
     
 
