@@ -50,8 +50,13 @@ parser.add_argument('data', metavar='DIR', nargs='*',
 parser.add_argument('--arch', '-a', metavar='ARCH',
                     choices=valid_models,
                     help='model architecture: | {0} (default: resnet18)'.format(valid_models))
+parser.add_argument('--opt', metavar='OPT', default='sgd',
+                    choices=['sgd', 'adam'],
+                    help='optimiser function')
 parser.add_argument('--num-classes', '-nc', metavar='N', default=1000, type=int,
                     help='num classes for classification task (default 1000)')
+parser.add_argument('--epochs', '-e', metavar='N', default=10, type=int,
+                    help='default num of epochs (default 10)')
 parser.add_argument('-j', '--workers', default=6, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('-b', '--batch-size', default=256, type=int,
@@ -247,10 +252,16 @@ def main():
     #### Edit point for tuning details ####
     criterion = nn.CrossEntropyLoss().cuda()
 
-    optimizer = torch.optim.SGD(model.parameters(), args.lr,
+    if args.opt == 'sgd':
+        optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
-    
+
+    if args.opt == 'adam':
+        optimizer = torch.optim.Adam(model.parameters(), args.lr,
+                                    weight_decay=args.weight_decay)
+
+
     if args.fp16:
         optimizer = FP16_Optimizer(optimizer,
                                    static_loss_scale=args.static_loss_scale,
@@ -281,7 +292,7 @@ def main():
 
     wandb.watch(model)
 
-    for epoch in range(0, 10):
+    for epoch in range(0, args.epochs):
 
         # train loop
         train(train_loader, model, criterion, optimizer, epoch)
