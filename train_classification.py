@@ -301,12 +301,12 @@ def main():
 
     for epoch in range(0, args.epochs):
 
-        scheduler.step()
-
         # train loop
         train(train_loader, model, criterion, optimizer, epoch)
         validate(val_loader, model, criterion, epoch)
         
+        scheduler.step()
+
         # for each epoch need to reset
         train_loader.reset()
         val_loader.reset()
