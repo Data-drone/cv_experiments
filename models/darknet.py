@@ -14,9 +14,9 @@ __all__ = ['TinyDarknet', 'tinydarknetv3']
 
 class TinyDarknet(nn.Module):
     # replicates tiny yolov3 backbone
-    def __init__(self, num_blocks, num_classes=1000):
+    def __init__(self, num_blocks, num_classes=1000, num_inputs=3):
         super().__init__()
-        self.conv1 = ConvBN(3, 16, kernel_size=3, stride=1, padding=1)
+        self.conv1 = ConvBN(num_inputs, 16, kernel_size=3, stride=1, padding=1)
         self.maxpool = nn.MaxPool2d(2, 2)
         self.layer1 = self.make_tiny_yolo_stack(32, num_blocks, stride=1)
         self.eight_layer = ConvBN(128, 256, kernel_size=3, stride=1, padding=1)
