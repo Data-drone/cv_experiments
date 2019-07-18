@@ -103,8 +103,14 @@ def to_python_float(t):
         return t[0]
 
 
-def train():
-    pass
+def train(train_loader, model, optimizer, epoch):
+    
+    model.train()
+
+    for i, data in enumerate(train_loader):
+
+        images
+
 
 def validate():
     pass
@@ -158,6 +164,8 @@ def main():
                                    static_loss_scale=args.static_loss_scale,
                                    dynamic_loss_scale=args.dynamic_loss_scale)
 
+    # can I add a scheduler here?
+
 
     traindir = args.data[0]
     valdir= args.data[1]
@@ -172,7 +180,18 @@ def main():
     train_loader = DALIGenericIterator(train_pipe, ["images", "boxes", "labels"],
                                         118287, stop_at_epoch=False)
 
-    # do we need two annotations?
+    # do we need two annotations? the size has been hardcoded for now
     val_pipe = CocoValPipe(file_root = valdir, annotations_file = annotationsdir,
                             batch_size = args.batch_size, num_threads = args.workers,
                             device_id=args.local_rank, num_gpus=1)
+
+    val_loader = DALIGenericIterator(val_pipe, ["images", "boxes", "labels"],
+                                       5000 , stop_at_epoch=False)
+
+    wandb.watch(model)
+
+    for epoch in range(0, args.epochs):
+
+        # is this all we need?
+        train(train_loader, model, optimizer, epoch)
+        validate(val_loader, model, optimizer, epoch)

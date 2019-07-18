@@ -17,6 +17,7 @@ import wandb
 import logging
 import models as local_models
 from utils import AverageMeter
+from torch.optim.lr_scheduler import MultiStepLR
 
 # load pipelines
 from data_pipeline.basic_pipeline import HybridTrainPipe, HybridValPipe
@@ -261,11 +262,17 @@ def main():
         optimizer = torch.optim.Adam(model.parameters(), args.lr,
                                     weight_decay=args.weight_decay)
 
+    scheduler = MultiStepLR(
+        optimizer=optimizer, 
+        milestones=[43, 54], 
+        gamma=0.1)
 
     if args.fp16:
         optimizer = FP16_Optimizer(optimizer,
                                    static_loss_scale=args.static_loss_scale,
                                    dynamic_loss_scale=args.dynamic_loss_scale)
+
+
 
 
     traindir = args.data[0]
@@ -293,6 +300,8 @@ def main():
     wandb.watch(model)
 
     for epoch in range(0, args.epochs):
+
+        scheduler.step()
 
         # train loop
         train(train_loader, model, criterion, optimizer, epoch)
