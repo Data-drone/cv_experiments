@@ -17,7 +17,8 @@ import wandb
 import logging
 import models as local_models
 from utils import AverageMeter
-from torch.optim.lr_scheduler import MultiStepLR
+
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 # load pipelines
 from data_pipeline.basic_pipeline import HybridTrainPipe, HybridValPipe
