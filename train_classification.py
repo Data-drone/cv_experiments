@@ -170,7 +170,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         
 
 
-def validate(val_loader, model, criterion, epoch):
+def validate(val_loader, model, criterion, epoch) -> float:
     
     model.eval()
     top1 = AverageMeter()
@@ -209,6 +209,7 @@ def validate(val_loader, model, criterion, epoch):
 
     wandb.log({"epoch": epoch, "val_loss": loss_list.avg, "val_top1": top1.avg,  "val_top5": top5.avg})
 
+    return loss_list.avg
     
 
 def main():
@@ -262,10 +263,12 @@ def main():
         optimizer = torch.optim.Adam(model.parameters(), args.lr,
                                     weight_decay=args.weight_decay)
 
-    scheduler = MultiStepLR(
-        optimizer=optimizer, 
-        milestones=[43, 54], 
-        gamma=0.1)
+    #scheduler = MultiStepLR(
+    #    optimizer=optimizer, 
+    #    milestones=[43, 54], 
+    #    gamma=0.1)
+
+    scheduler = ReduceLROnPlateau(optimizer, 'min')
 
     if args.fp16:
         optimizer = FP16_Optimizer(optimizer,
@@ -303,9 +306,9 @@ def main():
 
         # train loop
         train(train_loader, model, criterion, optimizer, epoch)
-        validate(val_loader, model, criterion, epoch)
+        val_loss = validate(val_loader, model, criterion, epoch)
         
-        scheduler.step()
+        scheduler.step(val_loss)
 
         # for each epoch need to reset
         train_loader.reset()
