@@ -310,6 +310,9 @@ def main():
         val_loss = validate(val_loader, model, criterion, epoch)
         
         scheduler.step(val_loss)
+        # ReduceLROnPlateau doesn't have the get_lr property
+        #print('learn rate: {0}'.format(scheduler.get_lr()))
+        #wandb.log({"learn_rate": scheduler.get_lr()})
 
         # for each epoch need to reset
         train_loader.reset()
