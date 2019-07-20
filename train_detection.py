@@ -12,12 +12,11 @@ import torch.distributed as dist
 import torch.optim
 import torch.utils.data
 import torch.utils.data.distributed
-import torchvision.models as models
+import torchvision.models.detection as models
 import wandb
 import logging
 import models as local_models
 from utils import AverageMeter
-
 
 # load pipelines
 from data_pipeline.coco_pipeline import CocoTrainPipe, CocoValPipe
@@ -29,7 +28,7 @@ except ImportError:
 
 train_logger = logging.getLogger(__name__)
 
-wandb.init(project="image_detection")
+#wandb.init(project="image_detection")
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -45,14 +44,14 @@ parser = argparse.ArgumentParser(description="PyTorch Model Training")
 
 parser.add_argument('data', metavar='DIR', nargs='*',
                     help='paths to dataset and annotations')
-parser.add_argument('--arch', '-a', metavar='ARCH',
+parser.add_argument('--arch', '-a', metavar='ARCH', default='',
                     choices=valid_models,
                     help='model architecture: | {0} (default: resnet18)'.format(valid_models))
 parser.add_argument('--opt', metavar='OPT', default='sgd',
                     choices=['sgd', 'adam'],
                     help='optimiser function')
 parser.add_argument('--num-classes', '-nc', metavar='N', default=80, type=int,
-                    help='num classes for classification task (default 8080)')
+                    help='num classes for detection task (default 8080)')
 parser.add_argument('--epochs', '-e', metavar='N', default=10, type=int,
                     help='default num of epochs (default 10)')
 parser.add_argument('-j', '--workers', default=6, type=int, metavar='N',
@@ -84,7 +83,7 @@ parser.add_argument('--local_rank', default=0, type=int,
 cudnn.benchmark = True
 
 args = parser.parse_args()
-wandb.config.update(args)
+#wandb.config.update(args)
 
 # make apex optional - we aren't using distributed
 if args.fp16: #or args.distributed:
@@ -121,83 +120,84 @@ def train(train_loader, model, optimizer, epoch):
 def validate():
     pass
 
-def main():
+#def main():
 
-    """
-    main training loop function
-    """
+"""
+main training loop function
+"""
 
-    # distributed training variable
-    args.world_size = 1
-    
-    if args.fp16:
-        assert torch.backends.cudnn.enabled, "fp16 mode requires cudnn backend to be enabled."
+# distributed training variable
+args.world_size = 1
 
-    if args.static_loss_scale != 1.0:
-        if not args.fp16:
-            print("Warning:  if --fp16 is not used, static_loss_scale will be ignored.")
+if args.fp16:
+    assert torch.backends.cudnn.enabled, "fp16 mode requires cudnn backend to be enabled."
 
-    # TO DO add pretrained handling to local models
-    if args.pretrained:
-        print("=> using pre-trained model '{}'".format(args.arch))
-        if args.arch in model_names:
-            model = models.__dict__[args.arch](pretrained=True)
-        elif args.arch in local_model_names:
-            model = local_models.__dict__[args.arch](pretrained=True)
-    else:
-        print("=> creating new model '{}'".format(args.arch))
-        if args.arch in model_names:
-            model = models.__dict__[args.arch](pretrained=False)
-        elif args.arch in local_model_names:
-            model = local_models.__dict__[args.arch](pretrained=False)
+if args.static_loss_scale != 1.0:
+if not args.fp16:
+    print("Warning:  if --fp16 is not used, static_loss_scale will be ignored.")
 
-    model = model.cuda()
-    if args.fp16:
-        model = network_to_half(model)
+# TO DO add pretrained handling to local models
+if args.pretrained:
+    print("=> using pre-trained model '{}'".format(args.arch))
+if args.arch in model_names:
+    model = models.__dict__[args.arch](pretrained=True)
+elif args.arch in local_model_names:
+    model = local_models.__dict__[args.arch](pretrained=True)
+else:
+    print("=> creating new model '{}'".format(args.arch))
 
-     if args.opt == 'sgd':
-        optimizer = torch.optim.SGD(model.parameters(), args.lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay)
+if args.arch in model_names:
+    model = models.__dict__[args.arch](pretrained=False)
+elif args.arch in local_model_names:
+    model = local_models.__dict__[args.arch](pretrained=False)
 
-    if args.opt == 'adam':
-        optimizer = torch.optim.Adam(model.parameters(), args.lr,
-                                    weight_decay=args.weight_decay)
+model = model.cuda()
+if args.fp16:       
+    model = network_to_half(model)
 
+if args.opt == 'sgd':
+optimizer = torch.optim.SGD(model.parameters(), args.lr,
+                        momentum=args.momentum,
+                        weight_decay=args.weight_decay)
 
-    if args.fp16:
-        optimizer = FP16_Optimizer(optimizer,
-                                   static_loss_scale=args.static_loss_scale,
-                                   dynamic_loss_scale=args.dynamic_loss_scale)
-
-    # can I add a scheduler here?
+if args.opt == 'adam':
+optimizer = torch.optim.Adam(model.parameters(), args.lr,
+                        weight_decay=args.weight_decay)
 
 
-    traindir = args.data[0]
-    valdir= args.data[1]
-    annotationsdir = args.data[2]
+if args.fp16:
+optimizer = FP16_Optimizer(optimizer,
+                        static_loss_scale=args.static_loss_scale,
+                        dynamic_loss_scale=args.dynamic_loss_scale)
 
-    train_pipe = COCOTrainPipeline(file_root = traindir, annotations_file = annotationsdir,
-                            batch_size = args.batch_size, num_threads = args.workers,
-                            device_id=args.local_rank, num_gpus=1)
-    
-    
-    # size has been hard coded for now 
-    train_loader = DALIGenericIterator(train_pipe, ["images", "boxes", "labels"],
-                                        118287, stop_at_epoch=False)
+# can I add a scheduler here?
 
-    # do we need two annotations? the size has been hardcoded for now
-    val_pipe = CocoValPipe(file_root = valdir, annotations_file = annotationsdir,
-                            batch_size = args.batch_size, num_threads = args.workers,
-                            device_id=args.local_rank, num_gpus=1)
 
-    val_loader = DALIGenericIterator(val_pipe, ["images", "boxes", "labels"],
-                                       5000 , stop_at_epoch=False)
+traindir = args.data[0]
+valdir= args.data[1]
+annotationsdir = args.data[2]
 
-    wandb.watch(model)
+train_pipe = COCOTrainPipeline(file_root = traindir, annotations_file = annotationsdir,
+                batch_size = args.batch_size, num_threads = args.workers,
+                device_id=args.local_rank, num_gpus=1)
 
-    for epoch in range(0, args.epochs):
 
-        # is this all we need?
-        train(train_loader, model, optimizer, epoch)
-        validate(val_loader, model, optimizer, epoch)
+# size has been hard coded for now 
+train_loader = DALIGenericIterator(train_pipe, ["images", "boxes", "labels"],
+                            118287, stop_at_epoch=False)
+
+# do we need two annotations? the size has been hardcoded for now
+val_pipe = CocoValPipe(file_root = valdir, annotations_file = annotationsdir,
+                batch_size = args.batch_size, num_threads = args.workers,
+                device_id=args.local_rank, num_gpus=1)
+
+val_loader = DALIGenericIterator(val_pipe, ["images", "boxes", "labels"],
+                            5000 , stop_at_epoch=False)
+
+#wandb.watch(model)
+
+#for epoch in range(0, args.epochs):
+
+# is this all we need?
+#    train(train_loader, model, optimizer, epoch)
+#    validate(val_loader, model, optimizer, epoch)
