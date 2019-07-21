@@ -156,19 +156,19 @@ if args.fp16:
     model = network_to_half(model)
 
 if args.opt == 'sgd':
-optimizer = torch.optim.SGD(model.parameters(), args.lr,
-                        momentum=args.momentum,
-                        weight_decay=args.weight_decay)
+    optimizer = torch.optim.SGD(model.parameters(), args.lr,
+                                momentum=args.momentum,
+                                weight_decay=args.weight_decay)
 
 if args.opt == 'adam':
-optimizer = torch.optim.Adam(model.parameters(), args.lr,
-                        weight_decay=args.weight_decay)
+    optimizer = torch.optim.Adam(model.parameters(), args.lr,
+                                weight_decay=args.weight_decay)
 
 
 if args.fp16:
-optimizer = FP16_Optimizer(optimizer,
-                        static_loss_scale=args.static_loss_scale,
-                        dynamic_loss_scale=args.dynamic_loss_scale)
+    optimizer = FP16_Optimizer(optimizer,
+                                static_loss_scale=args.static_loss_scale,
+                                dynamic_loss_scale=args.dynamic_loss_scale)
 
 # can I add a scheduler here?
 
