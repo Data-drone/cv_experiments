@@ -19,7 +19,7 @@ import models as local_models
 from utils import AverageMeter
 
 # load pipelines
-from data_pipeline.coco_pipeline import CocoTrainPipe, CocoValPipe
+from data_pipeline.coco_pipeline import COCOTrainPipeline, COCOValPipeline
 try:
     from nvidia.dali.plugin.pytorch import DALIGenericIterator
 except ImportError:
@@ -187,7 +187,7 @@ train_loader = DALIGenericIterator(train_pipe, ["images", "boxes", "labels"],
                             118287, stop_at_epoch=False)
 
 # do we need two annotations? the size has been hardcoded for now
-val_pipe = CocoValPipe(file_root = valdir, annotations_file = annotationsdir,
+val_pipe = COCOValPipeline(file_root = valdir, annotations_file = annotationsdir,
                 batch_size = args.batch_size, num_threads = args.workers,
                 device_id=args.local_rank, num_gpus=1)
 
