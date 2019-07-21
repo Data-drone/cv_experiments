@@ -15,7 +15,7 @@ pipeline_logger = logging.getLogger(__name__ + '.coco_pipeline')
 # from the tutorial https://docs.nvidia.com/deeplearning/sdk/dali-developer-guide/docs/examples/detection_pipeline.html
 class COCOTrainPipeline(Pipeline):
     def __init__(self, file_root, annotations_file, batch_size, num_threads, device_id, num_gpus):
-        super(COCOTrainPipeline, self).__init__(batch_size, file_root, annotations_file, num_threads, device_id, num_gpus, seed = 15)
+        super(COCOTrainPipeline, self).__init__(batch_size, file_root, annotations_file, num_threads, device_id, num_gpus)
         self.input = ops.COCOReader(file_root = file_root, annotations_file = annotations_file,
                                      shard_id = device_id, num_shards = num_gpus, ratio=True, ltrb=True)
         self.decode = ops.nvJPEGDecoder(device = "mixed", output_type = types.RGB)
