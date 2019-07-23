@@ -110,6 +110,7 @@ def train(train_loader, model, optimizer, epoch):
 
         print(type(data))
         print(data)
+
         #images = data[0]
         #boxes = data[1]
         #labels = data[2]
@@ -117,8 +118,13 @@ def train(train_loader, model, optimizer, epoch):
 
 
 
-def validate():
-    pass
+def validate(val_loader):
+    
+    model.eval()
+
+    for i, data in enumerate(val_loader):
+
+        pass
 
 #def main():
 
