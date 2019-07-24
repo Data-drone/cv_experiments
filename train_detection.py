@@ -145,19 +145,19 @@ if args.static_loss_scale != 1.0:
 # TO DO add pretrained handling to local models
 if args.pretrained:
     print("=> using pre-trained model '{}'".format(args.arch))
-if args.arch in model_names:
-    model = models.__dict__[args.arch](pretrained=True)
-elif args.arch in local_model_names:
-    model = local_models.__dict__[args.arch](pretrained=True)
+    if args.arch in model_names:
+        model = models.__dict__[args.arch](pretrained=True)
+    elif args.arch in local_model_names:
+        model = local_models.__dict__[args.arch](pretrained=True)
 else:
     print("=> creating new model '{}'".format(args.arch))
-
-if args.arch in model_names:
-    model = models.__dict__[args.arch](pretrained=False)
-elif args.arch in local_model_names:
-    model = local_models.__dict__[args.arch](pretrained=False)
+    if args.arch in model_names:
+        model = models.__dict__[args.arch](pretrained=False)
+    elif args.arch in local_model_names:
+        model = local_models.__dict__[args.arch](pretrained=False)
 
 model = model.cuda()
+
 if args.fp16:       
     model = network_to_half(model)
 
@@ -185,8 +185,7 @@ annotationsdir = args.data[2]
 
 train_pipe = COCOTrainPipeline(batch_size = args.batch_size, num_threads = args.workers,
                 device_id=args.local_rank, 
-                file_root = traindir, annotations_file = annotationsdir,
-                num_gpus=1)
+                file_root = traindir, annotations_file = annotationsdir)
 
 
 # size has been hard coded for now 
@@ -196,8 +195,7 @@ train_loader = DALIGenericIterator(train_pipe, ["images", "boxes", "labels"],
 # do we need two annotations? the size has been hardcoded for now
 val_pipe = COCOValPipeline(batch_size = args.batch_size, num_threads = args.workers,
                 device_id=args.local_rank, 
-                file_root = valdir, annotations_file = annotationsdir, 
-                num_gpus=1)
+                file_root = valdir, annotations_file = annotationsdir)
 
 val_loader = DALIGenericIterator(val_pipe, ["images", "boxes", "labels"],
                             5000 , stop_at_epoch=False)
