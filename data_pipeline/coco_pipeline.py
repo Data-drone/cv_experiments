@@ -14,10 +14,11 @@ pipeline_logger = logging.getLogger(__name__ + '.coco_pipeline')
 
 # from the tutorial https://docs.nvidia.com/deeplearning/sdk/dali-developer-guide/docs/examples/detection_pipeline.html
 class COCOTrainPipeline(Pipeline):
-    def __init__(self, batch_size, num_threads, device_id, file_root, annotations_file, num_gpus):
-        super(COCOTrainPipeline, self).__init__(batch_size, num_threads, device_id, num_gpus)
-        self.input = ops.COCOReader(file_root = file_root, annotations_file = annotations_file,
-                                     shard_id = device_id, num_shards = num_gpus, ratio=True, ltrb=True)
+    def __init__(self, batch_size, num_threads, device_id, file_root, annotations_file, dali_cpu=False, local_shard=0, total_shards=1):
+        super(COCOTrainPipeline, self).__init__(batch_size, num_threads, device_id, seed=12 + device_id)
+        train_instances = annotations_file + '/instances_train2017.json'
+        self.input = ops.COCOReader(file_root = file_root, annotations_file = train_instances,
+                                     shard_id = device_id, num_shards = total_shards, ratio=True, ltrb=True)
         self.decode = ops.nvJPEGDecoder(device = "mixed", output_type = types.RGB)
         self.flip = ops.Flip(device = "gpu")
         self.bbflip = ops.BbFlip(device = "cpu", ltrb=True)
@@ -60,7 +61,8 @@ class COCOTrainPipeline(Pipeline):
 class COCOValPipeline(Pipeline):
     def __init__(self, batch_size, num_threads, device_id, file_root, annotations_file, num_gpus):
         super(COCOValPipeline, self).__init__(batch_size, num_threads, device_id, num_gpus, seed = 15)
-        self.input = ops.COCOReader(file_root = file_root, annotations_file = annotations_file,
+        val_instances = annotations_file + '/instances_val2017.json'
+        self.input = ops.COCOReader(file_root = file_root, annotations_file = val_instances,
                                      shard_id = device_id, num_shards = num_gpus, ratio=True, ltrb=True)
         self.decode = ops.nvJPEGDecoder(device = "mixed", output_type = types.RGB)
         self.flip = ops.Flip(device = "gpu")
