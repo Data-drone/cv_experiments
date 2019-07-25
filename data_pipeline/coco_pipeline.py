@@ -35,6 +35,11 @@ class COCOTrainPipeline(Pipeline):
                                                    ltrb=True)
         self.slice = ops.Slice(device="gpu")
 
+        self.box_encoder = ops.BoxEncoder(
+            device="cpu",
+            criteria=0.5,
+            anchors=default_boxes.as_ltrb_list())
+
     def define_graph(self):
         rng = self.coin()
         rng2 = self.coin2()
@@ -56,8 +61,9 @@ class COCOTrainPipeline(Pipeline):
 
         images = self.flip(images, horizontal = rng, vertical = rng2)
         bboxes = self.bbflip(bboxes, horizontal = rng, vertical = rng2)
+        bboxes, labels = self.box_encoder(bboxes, labels)
 
-        return (images, bboxes, labels)
+        return (images, bboxes.gpu(), labels.gpu())
 
 
 class COCOValPipeline(Pipeline):
