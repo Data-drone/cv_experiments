@@ -107,7 +107,7 @@ class COCOValPipeline(Pipeline):
 
 class CocoSimple(Pipeline):
     def __init__(self, batch_size, num_threads, device_id, file_root, annotations_file, num_gpus):
-        super(COCOPipeline, self).__init__(batch_size, num_threads, device_id, seed = 15)
+        super(CocoSimple, self).__init__(batch_size, num_threads, device_id, seed = 15)
         train_instances = annotations_file + '/instances_train2017.json'
         self.input = ops.COCOReader(file_root = file_root, annotations_file = train_instances,
                                      shard_id = device_id, num_shards = num_gpus, ratio=True)
