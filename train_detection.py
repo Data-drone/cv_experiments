@@ -19,7 +19,7 @@ import models as local_models
 from utils import AverageMeter
 
 # load pipelines
-from data_pipeline.coco_pipeline import COCOTrainPipeline, COCOValPipeline
+from data_pipeline.coco_pipeline import COCOTrainPipeline, COCOValPipeline, CocoSimple
 try:
     from nvidia.dali.plugin.pytorch import DALIGenericIterator
 except ImportError:
@@ -183,22 +183,25 @@ traindir = args.data[0]
 valdir= args.data[1]
 annotationsdir = args.data[2]
 
-train_pipe = COCOTrainPipeline(batch_size = args.batch_size, num_threads = args.workers,
-                device_id=args.local_rank, 
-                file_root = traindir, annotations_file = annotationsdir)
+pipe_test = CocoSimple(batch_size = args.batch_size, num_threads = args.workers, device_id = args.local_rank,
+file_root = traindir, annotations_file = annotationsdir, num_gpus=1)
+
+#train_pipe = COCOTrainPipeline(batch_size = args.batch_size, num_threads = args.workers,
+#                device_id=args.local_rank, 
+#                file_root = traindir, annotations_file = annotationsdir)
 
 
 # size has been hard coded for now 
-train_loader = DALIGenericIterator(train_pipe, ["images", "boxes", "labels"],
-                            118287, stop_at_epoch=False)
+#train_loader = DALIGenericIterator(train_pipe, ["images", "boxes", "labels"],
+#                            118287, stop_at_epoch=False)
 
 # do we need two annotations? the size has been hardcoded for now
-val_pipe = COCOValPipeline(batch_size = args.batch_size, num_threads = args.workers,
-                device_id=args.local_rank, 
-                file_root = valdir, annotations_file = annotationsdir)
+#val_pipe = COCOValPipeline(batch_size = args.batch_size, num_threads = args.workers,
+#                device_id=args.local_rank, 
+#                file_root = valdir, annotations_file = annotationsdir)
 
-val_loader = DALIGenericIterator(val_pipe, ["images", "boxes", "labels"],
-                            5000 , stop_at_epoch=False)
+#val_loader = DALIGenericIterator(val_pipe, ["images", "boxes", "labels"],
+#                            5000 , stop_at_epoch=False)
 
 #wandb.watch(model)
 
