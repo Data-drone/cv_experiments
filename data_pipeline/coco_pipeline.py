@@ -39,7 +39,7 @@ class COCOTrainPipeline(Pipeline):
         rng = self.coin()
         rng2 = self.coin2()
 
-        inputs, bboxes, labels = self.input() # check this line
+        inputs, bboxes, labels = self.input(name="Reader") # check this line
         # need check ops coco reader?
 
         images = self.decode(inputs)

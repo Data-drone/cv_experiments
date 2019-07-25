@@ -186,9 +186,9 @@ annotationsdir = args.data[2]
 pipe_test = CocoSimple(batch_size = args.batch_size, num_threads = args.workers, device_id = args.local_rank,
 file_root = traindir, annotations_file = annotationsdir, num_gpus=1)
 
-#train_pipe = COCOTrainPipeline(batch_size = args.batch_size, num_threads = args.workers,
-#                device_id=args.local_rank, 
-#                file_root = traindir, annotations_file = annotationsdir)
+train_pipe = COCOTrainPipeline(batch_size = args.batch_size, num_threads = args.workers,
+                device_id=args.local_rank, 
+                file_root = traindir, annotations_file = annotationsdir)
 
 
 # size has been hard coded for now 
