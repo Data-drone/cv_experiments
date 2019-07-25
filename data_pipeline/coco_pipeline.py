@@ -39,7 +39,9 @@ class COCOTrainPipeline(Pipeline):
         rng = self.coin()
         rng2 = self.coin2()
 
-        inputs, bboxes, labels = self.input()
+        inputs, bboxes, labels = self.input() # check this line
+        # need check ops coco reader?
+
         images = self.decode(inputs)
 
         # Paste and BBoxPaste need to use same scales and positions
@@ -100,4 +102,18 @@ class COCOValPipeline(Pipeline):
         #images = self.flip(images, horizontal = rng, vertical = rng2)
         #bboxes = self.bbflip(bboxes, horizontal = rng, vertical = rng2)
 
+        return (images, bboxes, labels)
+
+
+class CocoSimple(Pipeline):
+    def __init__(self, batch_size, num_threads, device_id, file_root, annotations_file, num_gpus):
+        super(COCOPipeline, self).__init__(batch_size, num_threads, device_id, seed = 15)
+        train_instances = annotations_file + '/instances_train2017.json'
+        self.input = ops.COCOReader(file_root = file_root, annotations_file = train_instances,
+                                     shard_id = device_id, num_shards = num_gpus, ratio=True)
+        self.decode = ops.nvJPEGDecoder(device = "mixed", output_type = types.RGB)
+
+    def define_graph(self):
+        inputs, bboxes, labels = self.input()
+        images = self.decode(inputs)
         return (images, bboxes, labels)
