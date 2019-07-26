@@ -176,8 +176,7 @@ if args.fp16:
                                 static_loss_scale=args.static_loss_scale,
                                 dynamic_loss_scale=args.dynamic_loss_scale)
 
-# can I add a scheduler here?
-
+# can I add a scheduler here? - only for sgd?
 
 traindir = args.data[0]
 valdir= args.data[1]
@@ -192,6 +191,9 @@ train_pipe = COCOTrainPipeline(batch_size = args.batch_size, num_threads = args.
 
 
 # size has been hard coded for now 
+# need to restructure the way that it is called and how it is initiated
+# as per the SSD detector in the demo notes
+
 #train_loader = DALIGenericIterator(train_pipe, ["images", "boxes", "labels"],
 #                            118287, stop_at_epoch=False)
 
