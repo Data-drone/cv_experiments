@@ -61,9 +61,9 @@ class COCOTrainPipeline(Pipeline):
 
         images = self.flip(images, horizontal = rng, vertical = rng2)
         bboxes = self.bbflip(bboxes, horizontal = rng, vertical = rng2)
-        bboxes, labels = self.box_encoder(bboxes, labels)
+        #bboxes, labels = self.box_encoder(bboxes, labels)
 
-        return (images, bboxes.gpu(), labels.gpu())
+        return (images, bboxes, labels)
 
 
 class COCOValPipeline(Pipeline):

@@ -12,3 +12,9 @@ For image classification datasets, the folder structure is
 
 # TODO
 
+Investigate how to train detection algorithms properly
+Can we make a template for a series of detection algorithms?
+
+Targets:
+* Faster-RCNN
+* YoloV3
