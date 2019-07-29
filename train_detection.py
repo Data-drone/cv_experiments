@@ -118,6 +118,8 @@ def train(train_loader, model, optimizer, epoch):
 
 
 
+
+
 def validate(val_loader):
     
     model.eval()
@@ -143,6 +145,8 @@ if args.static_loss_scale != 1.0:
         print("Warning:  if --fp16 is not used, static_loss_scale will be ignored.")
 
 # TO DO add pretrained handling to local models
+# need to revise the way we do the model creation for faster rcnn
+
 if args.pretrained:
     print("=> using pre-trained model '{}'".format(args.arch))
     if args.arch in model_names:
