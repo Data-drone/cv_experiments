@@ -111,9 +111,13 @@ def train(train_loader, model, optimizer, epoch):
         print(type(data))
         print(data)
 
-        #images = data[0]
-        #boxes = data[1]
+        images = data[0]
+        boxes = data[1]
         #labels = data[2]
+
+        losses = model(images=images, boxes=boxes)
+
+        
 
 
 

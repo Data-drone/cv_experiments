@@ -35,10 +35,10 @@ class COCOTrainPipeline(Pipeline):
                                                    ltrb=True)
         self.slice = ops.Slice(device="gpu")
 
-        self.box_encoder = ops.BoxEncoder(
-            device="cpu",
-            criteria=0.5,
-            anchors=default_boxes.as_ltrb_list())
+        #self.box_encoder = ops.BoxEncoder(
+        #    device="cpu",
+        #    criteria=0.5,
+        #    anchors=default_boxes.as_ltrb_list())
 
     def define_graph(self):
         rng = self.coin()
