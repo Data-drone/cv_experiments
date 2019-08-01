@@ -119,7 +119,12 @@ class CocoSimple(Pipeline):
                                      shard_id = device_id, num_shards = num_gpus, ratio=True)
         self.decode = ops.nvJPEGDecoder(device = "mixed", output_type = types.RGB)
 
+        # need a crop and resize to align image sizes?
+        # need to spit out image and target one by one for train?        
+
     def define_graph(self):
         inputs, bboxes, labels = self.input()
+
+
         images = self.decode(inputs)
         return (images, bboxes, labels)
