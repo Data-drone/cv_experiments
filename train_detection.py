@@ -114,10 +114,13 @@ def train(train_loader, model, optimizer, epoch):
         images = data[0]
         boxes = data[1]
         #labels = data[2]
+        # we need to process the boxes and feed it into the model
+        # there are multiple boxes per image
+        # what is the mapping into the model?
 
         losses = model(images=images, boxes=boxes)
 
-        
+
 
 
 
