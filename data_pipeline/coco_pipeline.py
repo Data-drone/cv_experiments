@@ -125,5 +125,4 @@ class CocoSimple(Pipeline):
     def define_graph(self):
         inputs, bboxes, labels = self.input()
         images = self.decode(inputs)
-        pipeline_logger.info('image_shape: {0} boxes shape: {1}'.format(images.shape, bboxes.shape))
         return (images, bboxes, labels)
