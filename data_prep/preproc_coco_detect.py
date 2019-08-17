@@ -93,6 +93,7 @@ class Compose(object):
             image, target = t(image, target)
         return image, target
 
+
 # some coco images are missing annotations
 def coco_remove_images_without_annotations(dataset, cat_list=None):
     def _has_only_empty_bbox(anno):

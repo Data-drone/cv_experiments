@@ -16,6 +16,15 @@ wandb.init(project="object_detection")
 ### trigger cuda
 device = 'cuda'
 
+### fp16 to save space
+try:
+    #from apex.parallel import DistributedDataParallel as DDP
+    from apex.fp16_utils import *
+except ImportError:
+    raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this script.")
+assert torch.backends.cudnn.enabled, "fp16 mode requires cudnn backend to be enabled."
+
+
 ### Data Loaders
 coco_root = os.path.join('..','external_data','coco')
 
@@ -59,10 +68,19 @@ test_loader = torch.utils.data.DataLoader(
 model = model_test = models.__dict__['fasterrcnn_resnet50_fpn'](pretrained=False)
 model.to(device)
 
+# fp 16
+#model = network_to_half(model)
+
 ## declare optimiser
 params = [p for p in model.parameters() if p.requires_grad]
+
 optimizer = torch.optim.SGD(
         params, lr=0.0025, momentum=0.9, weight_decay=1e-4)
+
+#optimizer = FP16_Optimizer(optimizer,
+#                                   static_loss_scale=1,
+#                                   dynamic_loss_scale=False)
+
 
 
 def batch_loop(model, optimizer, data_loader, device, epoch):
@@ -71,10 +89,16 @@ def batch_loop(model, optimizer, data_loader, device, epoch):
     metric_logger = Logger()
     header = 'Epoch: [{}]'.format(epoch)
 
+    i = 0
     for images, targets in metric_logger.log(data_loader, header):
-        images = list(image.to(device) for image in images)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
-        loss_dict = model(images, targets)
+
+        images_l = list(image.to(device) for image in images)
+        target_l = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+        #assert type(images_l) == list()
+        #assert type(target_l) == list()
+
+        loss_dict = model(images_l, target_l)
 
         losses = sum(loss for loss in loss_dict.values())
 
@@ -88,7 +112,12 @@ def batch_loop(model, optimizer, data_loader, device, epoch):
                 v = v.item()
             assert isinstance(v, (float, int))
 
-        wandb.log(loss_dict)
+        results_dict = loss_dict
+        results_dict['epoch'] = epoch
+        results_dict['batch'] = i
+        wandb.log(results_dict)
+
+        i += 1
 
 
 
@@ -96,7 +125,6 @@ def train(model, optimizer, data_loader, test_loader, device):
 
     for epoch in range(10):
 
-        print(epoch)
         batch_loop(model, optimizer, data_loader, device, epoch)
 
         # eval loop as well
