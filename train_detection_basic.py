@@ -5,7 +5,7 @@ import torch
 import torchvision
 import torchvision.models.detection as models
 
-from data_prep.preproc_coco_detect import CocoDetection, CocoDetectProcessor
+from data_prep.preproc_coco_detect import CocoDetection, CocoDetectProcessor, coco_remove_images_without_annotations
 from data_prep.preproc_coco_detect import Compose, RandomHorizontalFlip, ToTensor
 from misc_utils.detection_logger import Logger
 import os
@@ -29,6 +29,8 @@ train_set = CocoDetection(os.path.join(coco_root, 'train2017'),
 val_set = CocoDetection(os.path.join(coco_root, 'val2017'), 
                     os.path.join(coco_root, 'annotations', 'instances_val2017.json'), 
                     val_transforms)
+
+train_set = coco_remove_images_without_annotations(train_set)
 
 # Coco Dataset Samplers
 train_sampler = torch.utils.data.RandomSampler(train_set)
