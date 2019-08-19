@@ -42,6 +42,16 @@ def collate_fn(batch):
 def batch_loop(model, optimizer, data_loader, device, epoch, fp16):
     # based on the train_one_epoch detection engine reference script
     model.train()
+
+    if fp16:
+        # fp16 fix? - https://github.com/NVIDIA/apex/issues/122
+        def fix_bn(m):
+            classname = m.__class__.__name__
+            if classname.find('BatchNorm') != -1:
+                m.eval().half()
+
+        model.apply(fix_bn)
+
     metric_logger = Logger()
     header = 'Epoch: [{}]'.format(epoch)
 
