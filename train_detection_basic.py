@@ -12,6 +12,7 @@
 import torch
 import torchvision
 import torchvision.models.detection as models
+import models.detection as local_models
 import argparse
 
 from data_prep.preproc_coco_detect import CocoDetection, CocoDetectProcessor, coco_remove_images_without_annotations
@@ -102,8 +103,9 @@ def eval_loop(model, optimizer, data_loader, device, epoch, fp16):
         images_l = list(image.to(device) for image in images)
         target_l = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-        loss_dict = model(images_l, target_l)
-        losses = sum(loss for loss in loss_dict.values())
+        outputs = model(images_l)
+        
+        #losses = sum(loss for loss in loss_dict.values())
 
         # converting tensors to numbers
         for k, v in loss_dict.items():
@@ -166,7 +168,11 @@ def main(args):
             collate_fn=collate_fn)
 
     # instantiate model
-    model = models.__dict__['fasterrcnn_resnet50_fpn'](pretrained=False)
+    if args.arch in model_names:
+        model = models.__dict__[args.arch](pretrained=False)
+    elif args.arch in local_model_names:
+        model = local_models.__dict__[args.arch](pretrained=False)
+
     model.to(device)
 
     ## declare optimiser
@@ -188,7 +194,7 @@ def main(args):
         batch_loop(model, optimizer, train_loader, device, epoch, args.fp16)
 
         # validate one epoch
-        eval_loop(model, optimizer, test_loader, device, epoch, args.fp16)
+        #eval_loop(model, optimizer, test_loader, device, epoch, args.fp16)
 
     #train(model, optimizer, train_loader, test_loader, device, fp_16)
 
@@ -196,10 +202,23 @@ def main(args):
 
 if __name__ == '__main__':
 
+    model_names = sorted(name for name in models.__dict__
+                     if name.islower() and not name.startswith("__")
+                     and callable(models.__dict__[name]))
+
+    local_model_names = sorted(name for name in local_models.__dict__
+                     if name.islower() and not name.startswith("__")
+                     and callable(local_models.__dict__[name]))
+
+    valid_models = model_names + local_model_names
+
     parser = argparse.ArgumentParser(description="PyTorch Detection Model Training")
 
     parser.add_argument('data', metavar='DIR', default='../external_data/coco',
                         help='paths to dataset')
+    parser.add_argument('--arch', '-a', metavar='ARCH',
+                    choices=valid_models, default='fasterrcnn_resnet50_fpn',
+                    help='model architecture: | {0} (default: fasterrcnn_resnet50_fpn)'.format(valid_models))
     parser.add_argument('--device', default='cuda', help='device')
     parser.add_argument('--epochs', '-e', metavar='N', default=10, type=int,
                         help='default num of epochs (default 10)')
