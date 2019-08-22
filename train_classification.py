@@ -20,6 +20,9 @@ from utils import AverageMeter
 
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
+#TODO
+# sort out logging? we need to translate out from tensors
+
 # load pipelines
 from data_pipeline.basic_pipeline import HybridTrainPipe, HybridValPipe
 try:
@@ -30,7 +33,7 @@ except ImportError:
 
 train_logger = logging.getLogger(__name__)
 
-wandb.init(project="image_classification")
+wandb.init(project="image_classification_opt")
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -53,7 +56,7 @@ parser.add_argument('--arch', '-a', metavar='ARCH',
                     choices=valid_models,
                     help='model architecture: | {0} (default: resnet18)'.format(valid_models))
 parser.add_argument('--opt', metavar='OPT', default='sgd',
-                    choices=['sgd', 'adam'],
+                    choices=['sgd', 'adam', 'adamw'],
                     help='optimiser function')
 parser.add_argument('--num-classes', '-nc', metavar='N', default=1000, type=int,
                     help='num classes for classification task (default 1000)')
@@ -264,20 +267,22 @@ def main():
         optimizer = torch.optim.Adam(model.parameters(), args.lr,
                                     weight_decay=args.weight_decay)
 
+    if args.opt == 'adamw':
+        optimizer = torch.optim.AdamW(model.parameters(), args.lr,
+                                    weight_decay=args.weight_decay)
+
     #scheduler = MultiStepLR(
     #    optimizer=optimizer, 
     #    milestones=[43, 54], 
     #    gamma=0.1)
 
     scheduler = ReduceLROnPlateau(optimizer, 'min')
+    #scheduler = 
 
     if args.fp16:
         optimizer = FP16_Optimizer(optimizer,
                                    static_loss_scale=args.static_loss_scale,
                                    dynamic_loss_scale=args.dynamic_loss_scale)
-
-
-
 
     traindir = args.data[0]
     valdir= args.data[1]
