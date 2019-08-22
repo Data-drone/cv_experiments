@@ -169,7 +169,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
             print('[{0} / {1}]'.format(i, train_loader_len))
             print(stats)
        
-    wandb.log({"epoch": epoch, "train_loss": loss_list.avg, "train_top1": top1.avg,  "train_top5": top5.avg})
+    wandb.log({"epoch": epoch, "train_loss": loss_list.avg.item(), "train_top1": top1.avg.item(),  "train_top5": top5.avg.item()})
 
         
 
