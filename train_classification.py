@@ -164,12 +164,12 @@ def train(train_loader, model, criterion, optimizer, epoch):
         loss_list.update(to_python_float(reduced_loss), input.size(0) )
         
         if i % 20 == 0 and i > 1: 
-            stats = {"epoch": epoch, "loss": reduced_loss.cpu(), "Train Top-1": prec1.cpu(), 
-                        "Train Top-5": prec5.cpu()}
+            stats = {"epoch": epoch, "loss": reduced_loss.item(), "Train Top-1": prec1.item(), 
+                        "Train Top-5": prec5.item()}
             print('[{0} / {1}]'.format(i, train_loader_len))
             print(stats)
        
-    wandb.log({"epoch": epoch, "train_loss": loss_list.avg.item(), "train_top1": top1.avg.item(),  "train_top5": top5.avg.item()})
+    wandb.log({"epoch": epoch, "train_loss": loss_list.avg, "train_top1": top1.avg,  "train_top5": top5.avg})
 
         
 
