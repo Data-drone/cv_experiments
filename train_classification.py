@@ -78,11 +78,10 @@ parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
 parser.add_argument('--fp16', action='store_true',
                     help='Run model fp16 mode.')
-parser.add_argument('--static-loss-scale', type=float, default=1,
-                    help='Static loss scale, positive power of 2 values can improve fp16 convergence.')
-parser.add_argument('--dynamic-loss-scale', action='store_true',
-                    help='Use dynamic loss scaling.  If supplied, this argument supersedes ' +
-                    '--static-loss-scale.')
+parser.add_argument('--opt-level', type=str, default='O0')
+parser.add_argument('--keep-batchnorm-fp32', type=str, default=None)
+parser.add_argument('--loss-scale', type=str, default=None)
+
 parser.add_argument('--local_rank', default=0, type=int,
         help='Used for multi-process training. Can either be manually set ' +
             'or automatically set by using \'python -m multiproc\'.')
@@ -99,6 +98,7 @@ if args.fp16: #or args.distributed:
     try:
         #from apex.parallel import DistributedDataParallel as DDP
         from apex.fp16_utils import *
+        from apex import amp, optimizers
     except ImportError:
         raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this script.")
 
@@ -151,7 +151,8 @@ def train(train_loader, model, criterion, optimizer, epoch):
         optimizer.zero_grad()
 
         if args.fp16:
-            optimizer.backward(loss)
+            with amp.scale_loss(loss, optimizer) as scaled_loss:
+                scaled_loss.backward()
         else:
             loss.backward()
         optimizer.step()
@@ -228,10 +229,6 @@ def main():
     if args.fp16:
         assert torch.backends.cudnn.enabled, "fp16 mode requires cudnn backend to be enabled."
 
-    if args.static_loss_scale != 1.0:
-        if not args.fp16:
-            print("Warning:  if --fp16 is not used, static_loss_scale will be ignored.")
-
     # TO DO add pretrained handling to local models
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
@@ -251,8 +248,6 @@ def main():
         model.aux_logits=False
 
     model = model.cuda()
-    if args.fp16:
-        model = network_to_half(model)
 
     # define loss function (criterion) and optimizer
     #### Edit point for tuning details ####
@@ -280,10 +275,12 @@ def main():
     #scheduler = 
 
     if args.fp16:
-        optimizer = FP16_Optimizer(optimizer,
-                                   static_loss_scale=args.static_loss_scale,
-                                   dynamic_loss_scale=args.dynamic_loss_scale)
-
+        model, optimizer = amp.initialize(model, optimizer,
+                                      opt_level=args.opt_level,
+                                      keep_batchnorm_fp32=args.keep_batchnorm_fp32,
+                                      loss_scale=args.loss_scale
+                                      )
+    
     traindir = args.data[0]
     valdir= args.data[1]
 
