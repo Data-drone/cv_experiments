@@ -21,7 +21,10 @@ from utils import AverageMeter
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 #TODO
-# sort out logging? we need to translate out from tensors
+# look at cyclic lr
+# look at cyclic momentum
+# review
+# https://arxiv.org/abs/1803.09820
 
 # load pipelines
 from data_pipeline.basic_pipeline import HybridTrainPipe, HybridValPipe
