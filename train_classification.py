@@ -70,7 +70,7 @@ parser.add_argument('-j', '--workers', default=6, type=int, metavar='N',
 parser.add_argument('-b', '--batch-size', default=256, type=int,
                     metavar='N', help='mini-batch size (default: 256)')
 parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
-                    metavar='LR', help='initial learning rate')
+                    metavar='LR', help='Initial learning rate.  Will be scaled by <global batch size>/256: args.lr = args.lr*float(args.batch_size*args.world_size)/256.  A warmup schedule will also be applied over the first 5 epochs.')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
@@ -135,11 +135,13 @@ def train(train_loader, model, criterion, optimizer, epoch):
     top1 = AverageMeter()
     top5 = AverageMeter()
     loss_list = AverageMeter()
-
+        
     for i, data in enumerate(train_loader):
+        
         input = data[0]["data"]
         target = data[0]["label"].squeeze().cuda().long()
         train_loader_len = int(train_loader._size / args.batch_size)
+        adjust_learning_rate(optimizer, epoch, i, train_loader_len)
 
         input_var = Variable(input)
         target_var = Variable(target)
@@ -218,8 +220,31 @@ def validate(val_loader, model, criterion, epoch) -> float:
     wandb.log({"epoch": epoch, "val_loss": loss_list.avg, "val_top1": top1.avg,  "val_top5": top5.avg})
 
     return loss_list.avg
-    
+   
+# add a custom learning rate optimiser as per the apex reference
+def adjust_learning_rate(optimizer, epoch, step, len_epoch):
+    """LR schedule that should yield 76% converged accuracy with batch size 256"""
+    factor = epoch // 30
 
+    if epoch >= 80:
+        factor = factor + 1
+
+    lr = args.lr*(0.1**factor)
+
+    """Warmup"""
+    if epoch < 5:
+        lr = lr*float(1 + step + epoch*len_epoch)/(5.*len_epoch)
+    
+    wandb.log({"lr": lr})
+
+    # if(args.local_rank == 0):
+    #     print("epoch = {}, step = {}, lr = {}".format(epoch, step, lr))
+
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+
+    
+    
 def main():
     
     """
@@ -277,6 +302,11 @@ def main():
     scheduler = ReduceLROnPlateau(optimizer, 'min')
     #scheduler = 
 
+    # scale lr
+    # Scale learning rate based on global batch size
+    args.lr = args.lr*float(args.batch_size*args.world_size)/256. 
+
+    
     if args.fp16:
         model, optimizer = amp.initialize(model, optimizer,
                                       opt_level=args.opt_level,
