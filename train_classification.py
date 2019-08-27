@@ -141,7 +141,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         input = data[0]["data"]
         target = data[0]["label"].squeeze().cuda().long()
         train_loader_len = int(train_loader._size / args.batch_size)
-        adjust_learning_rate(optimizer, epoch, i, train_loader_len)
+        one_cyc_learning_rate(optimizer, epoch, i, train_loader_len)
 
         input_var = Variable(input)
         target_var = Variable(target)
@@ -220,7 +220,25 @@ def validate(val_loader, model, criterion, epoch) -> float:
     wandb.log({"epoch": epoch, "val_loss": loss_list.avg, "val_top1": top1.avg,  "val_top5": top5.avg})
 
     return loss_list.avg
-   
+
+def one_cyc_learning_rate(optimizer, epoch, step, len_epoch):
+    # need to add the step back down part
+    
+    mid_epoch = int((args.epochs)/2)
+    
+    lr = args.lr
+    
+    if epoch < mid_epoch:
+        lr = lr*float(1 + step + epoch*len_epoch)/(mid_epoch*len_epoch)
+    wandb.log({"cur_lr": lr})
+    
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+    
+    # start from the min rate
+    # get to the large rate
+    pass
+    
 # add a custom learning rate optimiser as per the apex reference
 def adjust_learning_rate(optimizer, epoch, step, len_epoch):
     """LR schedule that should yield 76% converged accuracy with batch size 256"""
@@ -235,7 +253,7 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch):
     if epoch < 5:
         lr = lr*float(1 + step + epoch*len_epoch)/(5.*len_epoch)
     
-    wandb.log({"lr": lr})
+    wandb.log({"cur_lr": lr})
 
     # if(args.local_rank == 0):
     #     print("epoch = {}, step = {}, lr = {}".format(epoch, step, lr))
