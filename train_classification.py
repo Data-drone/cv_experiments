@@ -230,14 +230,17 @@ def one_cyc_learning_rate(optimizer, epoch, step, len_epoch):
     
     if epoch < mid_epoch:
         lr = lr*float(1 + step + epoch*len_epoch)/(mid_epoch*len_epoch)
-    wandb.log({"cur_lr": lr})
+        
+    if step % 20 == 0 and step > 1:
+        wandb.log({"cur_lr": lr})
+        print("current learning rate: {0}".format(lr))
     
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
     
     # start from the min rate
     # get to the large rate
-    pass
+    
     
 # add a custom learning rate optimiser as per the apex reference
 def adjust_learning_rate(optimizer, epoch, step, len_epoch):
