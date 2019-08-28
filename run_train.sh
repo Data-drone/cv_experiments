@@ -17,5 +17,8 @@
 
 #python3 train_classification.py -a optresnet18 --opt 'adam' -nc 10 -e 25  --lr 0.02 -b 256 --fp16 --opt-level 'O1' "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 
-python3 train_classification.py -a optresnet18 --opt 'adam' -nc 10 -e 25  --lr 0.9 -b 256 --fp16 --opt-level 'O1' "../cv_data/cifar10/train" "../cv_data/cifar10/test"
+# causes overflow
+#python3 train_classification.py -a optresnet18 --opt 'adam' -nc 10 -e 25  --lr 0.9 -b 256 --fp16 --opt-level 'O1' "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 
+#
+python3 train_classification.py -a optresnet18 --opt 'adam' -nc 10 -e 25  --lr 0.35 -b 256 --fp16 --opt-level 'O1' "../cv_data/cifar10/train" "../cv_data/cifar10/test"
