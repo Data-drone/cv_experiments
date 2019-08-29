@@ -17,6 +17,7 @@ import wandb
 import logging
 import models as local_models
 from utils import AverageMeter
+from lr_schedulers.onecyclelr import OneCycleLR
 
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
@@ -129,7 +130,7 @@ def accuracy(output, target, topk=(1,)):
     return res
     
 
-def train(train_loader, model, criterion, optimizer, epoch):
+def train(train_loader, model, criterion, optimizer, epoch, scheduler):
 
     model.train()
     top1 = AverageMeter()
@@ -141,7 +142,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         input = data[0]["data"]
         target = data[0]["label"].squeeze().cuda().long()
         train_loader_len = int(train_loader._size / args.batch_size)
-        one_cyc_learning_rate(optimizer, epoch, i, train_loader_len)
+        #one_cyc_learning_rate(optimizer, epoch, i, train_loader_len)
 
         input_var = Variable(input)
         target_var = Variable(target)
@@ -161,6 +162,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         else:
             loss.backward()
         optimizer.step()
+        scheduler.step()
 
         torch.cuda.synchronize()
 
@@ -225,11 +227,12 @@ def one_cyc_learning_rate(optimizer, epoch, step, len_epoch):
     # need to add the step back down part
     
     mid_epoch = int((args.epochs)/2)
-    
     lr = args.lr
     
     if epoch < mid_epoch:
         lr = lr*float(1 + step + epoch*len_epoch)/(mid_epoch*len_epoch)
+    else:
+        lr = lr
         
     if step % 20 == 0 and step > 1:
         wandb.log({"cur_lr": lr})
@@ -320,7 +323,9 @@ def main():
     #    milestones=[43, 54], 
     #    gamma=0.1)
 
-    scheduler = ReduceLROnPlateau(optimizer, 'min')
+    scheduler = OneCycleLR(optimizer, num_steps=20, lr_range=(0.1, 1.))
+    
+    #scheduler = ReduceLROnPlateau(optimizer, 'min')
     #scheduler = 
 
     # scale lr
@@ -362,10 +367,11 @@ def main():
     for epoch in range(0, args.epochs):
 
         # train loop
-        train(train_loader, model, criterion, optimizer, epoch)
+        train(train_loader, model, criterion, optimizer, epoch, scheduler)
         val_loss = validate(val_loader, model, criterion, epoch)
         
-        scheduler.step(val_loss)
+        scheduler.step()
+        wandb.log({"cur_lr": scheduler.get_lr()})
         
         # ReduceLROnPlateau doesn't have the get_lr property
         #print('learn rate: {0}'.format(scheduler.get_lr()))
