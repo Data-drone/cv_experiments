@@ -323,7 +323,7 @@ def main():
     #    milestones=[43, 54], 
     #    gamma=0.1)
 
-    scheduler = OneCycleLR(optimizer, num_steps=20, lr_range=(0.1, 1.))
+    scheduler = OneCycleLR(optimizer, num_steps=100, lr_range=(0.01, args.lr))
     
     #scheduler = ReduceLROnPlateau(optimizer, 'min')
     #scheduler = 
@@ -370,7 +370,6 @@ def main():
         train(train_loader, model, criterion, optimizer, epoch, scheduler)
         val_loss = validate(val_loader, model, criterion, epoch)
         
-        scheduler.step()
         wandb.log({"cur_lr": scheduler.get_lr()})
         
         # ReduceLROnPlateau doesn't have the get_lr property
