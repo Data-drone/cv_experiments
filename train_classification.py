@@ -177,7 +177,7 @@ def train(train_loader, model, criterion, optimizer, epoch, scheduler):
             print('[{0} / {1}]'.format(i, train_loader_len))
             print(stats)
        
-    wandb.log({"epoch": epoch, "train_loss": loss_list.avg, "train_top1": top1.avg,  "train_top5": top5.avg})
+    wandb.log({"epoch": epoch, "train_loss": loss_list.avg, "train_top1": top1.avg,  "train_top5": top5.avg, "cur_lr": scheduler.get_lr()})
 
         
 
@@ -322,8 +322,6 @@ def main():
     #    optimizer=optimizer, 
     #    milestones=[43, 54], 
     #    gamma=0.1)
-
-    scheduler = OneCycleLR(optimizer, num_steps=100, lr_range=(0.01, args.lr))
     
     #scheduler = ReduceLROnPlateau(optimizer, 'min')
     #scheduler = 
@@ -361,6 +359,10 @@ def main():
                             data_dir=valdir, crop=crop_size, size=val_size)
     pipe.build()
     val_loader = DALIClassificationIterator(pipe, size=int(pipe.epoch_size("Reader") / args.world_size))
+    
+    
+    train_loader_len = int(train_loader._size / args.batch_size)
+    scheduler = OneCycleLR(optimizer, num_steps=train_loader_len, lr_range=(args.lr, 1.))
 
     wandb.watch(model)
 
@@ -369,8 +371,6 @@ def main():
         # train loop
         train(train_loader, model, criterion, optimizer, epoch, scheduler)
         val_loss = validate(val_loader, model, criterion, epoch)
-        
-        wandb.log({"cur_lr": scheduler.get_lr()})
         
         # ReduceLROnPlateau doesn't have the get_lr property
         #print('learn rate: {0}'.format(scheduler.get_lr()))
