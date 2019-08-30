@@ -216,7 +216,7 @@ def validate(val_loader, model, criterion, epoch) -> float:
         if i % 20 == 0 and i > 1: 
             stats = {"epoch": epoch, "loss": reduced_loss.item(), "Val Top-1": prec1.item(), 
                         "Val Top-5": prec5.item()}
-            progress = '[{0} / {1}]'.format(i, val_loader)
+            progress = '[{0} / {1}]'.format(i, val_loader_len)
             print("{0} - {1}".format(progress, stats))
     wandb.log({"epoch": epoch, "val_loss": loss_list.avg, "val_top1": top1.avg,  "val_top5": top5.avg})
 
