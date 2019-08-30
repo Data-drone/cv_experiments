@@ -214,11 +214,10 @@ def validate(val_loader, model, criterion, epoch) -> float:
         loss_list.update( to_python_float(reduced_loss), input.size(0) )
 
         if i % 20 == 0 and i > 1: 
-            stats = {"epoch": epoch, "loss": reduced_loss.cpu(), "Val Top-1": prec1.cpu(), 
-                        "Val Top-5": prec5.cpu()}
-            print('[{0} / {1}]'.format(i, val_loader_len))
-            print(stats)
-
+            stats = {"epoch": epoch, "loss": reduced_loss.item(), "Val Top-1": prec1.item(), 
+                        "Val Top-5": prec5.item()}
+            progress = '[{0} / {1}]'.format(i, val_loader)
+            print("{0} - {1}".format(progress, stats))
     wandb.log({"epoch": epoch, "val_loss": loss_list.avg, "val_top1": top1.avg,  "val_top5": top5.avg})
 
     return loss_list.avg
