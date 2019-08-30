@@ -173,11 +173,11 @@ def train(train_loader, model, criterion, optimizer, epoch, scheduler):
         
         if i % 20 == 0 and i > 1: 
             stats = {"epoch": epoch, "loss": reduced_loss.item(), "Train Top-1": prec1.item(), 
-                        "Train Top-5": prec5.item()}
-            print('[{0} / {1}]'.format(i, train_loader_len))
-            print(stats)
+                        "Train Top-5": prec5.item(), "cur_lr": scheduler.current_lr}
+            progress = '[{0} / {1}]'.format(i, train_loader_len)
+            print("{0} - {1}".format(progress, stats))
        
-    wandb.log({"epoch": epoch, "train_loss": loss_list.avg, "train_top1": top1.avg,  "train_top5": top5.avg, "cur_lr": scheduler.get_lr()})
+    wandb.log({"epoch": epoch, "train_loss": loss_list.avg, "train_top1": top1.avg,  "train_top5": top5.avg, "cur_lr": scheduler.current_lr})
 
         
 
@@ -280,8 +280,7 @@ def main():
     
     if args.fp16:
         assert torch.backends.cudnn.enabled, "fp16 mode requires cudnn backend to be enabled."
-
-    # TO DO add pretrained handling to local models
+        
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
         if args.arch in model_names:
@@ -328,7 +327,8 @@ def main():
 
     # scale lr
     # Scale learning rate based on global batch size
-    args.lr = args.lr*float(args.batch_size*args.world_size)/256. 
+    # distributed only
+    #args.lr = args.lr*float(args.batch_size*args.world_size)/256. 
 
     
     if args.fp16:
@@ -361,8 +361,8 @@ def main():
     val_loader = DALIClassificationIterator(pipe, size=int(pipe.epoch_size("Reader") / args.world_size))
     
     
-    train_loader_len = int(train_loader._size / args.batch_size)
-    scheduler = OneCycleLR(optimizer, num_steps=train_loader_len, lr_range=(args.lr, 1.))
+    train_loader_len = int(train_loader._size / args.batch_size)*args.epochs
+    scheduler = OneCycleLR(optimizer, num_steps=train_loader_len, lr_range=(args.lr/10, args.lr))
 
     wandb.watch(model)
 

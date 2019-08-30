@@ -64,6 +64,8 @@ class OneCycleLR:
 
         if self.last_step == -1:
             self.step()
+            
+        self.current_lr = None
 
     def state_dict(self):
         """Returns the state of the scheduler as a :class:`dict`.
@@ -110,7 +112,7 @@ class OneCycleLR:
         else:
             # Exceeded given num_steps: do nothing
             return
-
+        self.current_lr = lr
         self.optimizer.param_groups[0]['lr'] = lr
         if momentum:
             self.optimizer.param_groups[0]['momentum'] = momentum
