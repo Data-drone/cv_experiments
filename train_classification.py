@@ -161,6 +161,7 @@ def train(train_loader, model, criterion, optimizer, epoch, scheduler):
                 scaled_loss.backward()
         else:
             loss.backward()
+            
         optimizer.step()
         scheduler.step()
 
