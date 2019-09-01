@@ -4,7 +4,7 @@
 # TASKS
 # move maxpool layers
 # label smoothing
-# celu activations - added
+# celu activations - added 
 # ghost batch norm (for batch 512? - review large batch papers?)
 # frozen batch norm scales
 # input patch whitening
