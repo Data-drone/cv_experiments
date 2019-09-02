@@ -184,6 +184,9 @@ def main(args):
     if args.fp16:
         model, optimizer = amp.initialize(model, optimizer)
 
+    model.roi_heads.box_roi_pool.forward = \
+    amp.half_function(model.roi_heads.box_roi_pool.forward)
+
     #wandb.watch(model)
 
     # trigger train loop
@@ -194,7 +197,7 @@ def main(args):
         batch_loop(model, optimizer, train_loader, device, epoch, args.fp16)
 
         # validate one epoch
-        #eval_loop(model, optimizer, test_loader, device, epoch, args.fp16)
+        # eval_loop(model, optimizer, test_loader, device, epoch, args.fp16)
 
     #train(model, optimizer, train_loader, test_loader, device, fp_16)
 
