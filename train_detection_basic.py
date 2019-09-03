@@ -182,7 +182,11 @@ def main(args):
             params, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
     if args.fp16:
-        model, optimizer = amp.initialize(model, optimizer)
+        model, optimizer = amp.initialize(model, optimizer,
+                                      opt_level=args.opt_level,
+                                      keep_batchnorm_fp32=args.keep_batchnorm_fp32,
+                                      loss_scale=args.loss_scale
+                                      )
 
     model.roi_heads.box_roi_pool.forward = \
     amp.half_function(model.roi_heads.box_roi_pool.forward)
@@ -237,7 +241,12 @@ if __name__ == '__main__':
                         metavar='N', help='print frequency (default: 10)')
     parser.add_argument('-j', '--workers', default=1, type=int, metavar='N',
                         help='number of data loading workers (default: 1)')
-    parser.add_argument('--fp16', action='store_true', help='fp 16 or not')                        
+    
+    #fp16 vars
+    parser.add_argument('--fp16', action='store_true', help='fp 16 or not')     
+    parser.add_argument('--opt-level', type=str, default='O1')
+    parser.add_argument('--keep-batchnorm-fp32', type=str, default=None)
+    parser.add_argument('--loss-scale', type=str, default=None)                   
 
     args = parser.parse_args()
 
