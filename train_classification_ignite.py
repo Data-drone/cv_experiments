@@ -8,6 +8,7 @@ import torch
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 import torch.optim
+import optimisers as  
 import torch.utils.data
 import torchvision.models as models
 
@@ -18,6 +19,10 @@ from tqdm import tqdm
 
 ## logging
 import wandb
+
+## Look into
+# https://github.com/pytorch/ignite/commit/f02a91a28153e08092dbb625472e0211f642923d
+# on integrating dali with ignite
 
 # load pipelines
 from data_pipeline.basic_pipeline import HybridTrainPipe, HybridValPipe
