@@ -385,6 +385,8 @@ def main():
         # for each epoch need to reset
         train_loader.reset()
         val_loader.reset()
+        
+    #Add model save point
 
 if __name__ == '__main__':
     main()
