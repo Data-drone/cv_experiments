@@ -387,6 +387,7 @@ def main():
         val_loader.reset()
         
     #Add model save point
+    torch.save(model, 'log_models/' + 'classification-checkpoint.pth.tar')
 
 if __name__ == '__main__':
     main()
