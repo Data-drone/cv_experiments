@@ -23,7 +23,7 @@ from lr_schedulers.onecyclelr import OneCycleLR
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 #TODO
-# look at cyclic lr
+# look at cyclic lr - added one cycle
 # look at cyclic momentum
 # review
 # https://arxiv.org/abs/1803.09820
@@ -223,27 +223,6 @@ def validate(val_loader, model, criterion, epoch) -> float:
     wandb.log({"epoch": epoch, "val_loss": loss_list.avg, "val_top1": top1.avg,  "val_top5": top5.avg})
 
     return loss_list.avg
-
-def one_cyc_learning_rate(optimizer, epoch, step, len_epoch):
-    # need to add the step back down part
-    
-    mid_epoch = int((args.epochs)/2)
-    lr = args.lr
-    
-    if epoch < mid_epoch:
-        lr = lr*float(1 + step + epoch*len_epoch)/(mid_epoch*len_epoch)
-    else:
-        lr = lr
-        
-    if step % 20 == 0 and step > 1:
-        wandb.log({"cur_lr": lr})
-        print("current learning rate: {0}".format(lr))
-    
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-    
-    # start from the min rate
-    # get to the large rate
     
     
 # add a custom learning rate optimiser as per the apex reference
