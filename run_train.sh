@@ -36,7 +36,7 @@
 ## Trying to find my time for 94% accuracy on val
 #python3 train_classification.py -a optresnet18 --opt 'sgd' -nc 10 -e 12  --lr 0.5 -b 256 --fp16 --opt-level 'O2' "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 
-python3 train_classification.py -a optresnet18 --opt 'radam' -nc 10 -e 12  --lr 0.5 -b 256 --fp16 --opt-level 'O1' "../cv_data/cifar10/train" "../cv_data/cifar10/test"
+python3 train_classification.py -a optresnet18 --opt 'radam' -nc 10 -e 12  --lr 0.5 -b 384 --fp16 --opt-level 'O2' "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 
 ### ignite testing
 #python3 train_classification_ignite.py -a optresnet18 --opt 'sgd' -nc 10 -e 12  --lr 0.5 -b 256  "../cv_data/cifar10/train" "../cv_data/cifar10/test"
