@@ -1,6 +1,8 @@
 #### train classification with ignite
 
 from argparse import ArgumentParser
+from typing import Sequence
+from math import ceil
 
 import models as local_models
 
@@ -8,11 +10,13 @@ import torch
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 import torch.optim
-import optimisers as  
+#import optimisers as  
 import torch.utils.data
 import torchvision.models as models
+from torchvision.datasets import ImageFolder
 
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
+
 from ignite.metrics import Accuracy, Loss
 
 from tqdm import tqdm
@@ -27,7 +31,7 @@ import wandb
 # load pipelines
 from data_pipeline.basic_pipeline import HybridTrainPipe, HybridValPipe
 try:
-    from nvidia.dali.plugin.pytorch import DALIClassificationIterator
+    from nvidia.dali.plugin.pytorch import DALIClassificationIterator, DALIGenericIterator
 except ImportError:
     raise ImportError("Please install DALI from https://www.github.com/NVIDIA/DALI to run this example.")
 
@@ -41,6 +45,43 @@ local_model_names = sorted(name for name in local_models.__dict__
                      and callable(local_models.__dict__[name]))
 
 valid_models = model_names + local_model_names
+
+###### DALI Specific ######
+
+def _pipelines_sizes(pipes):
+    for p in pipes:
+        p.build()
+        keys = list(p.epoch_size().keys())
+        if len(keys) > 0:
+            for k in keys:
+                yield p.epoch_size(k)
+        else:
+            yield len(p)
+
+class DALILoader(DALIGenericIterator):
+    """
+    Class to make a `DALIGenericIterator` because `ProgressBar` wants an object with a
+    `__len__` method. Also the `ProgressBar` is updated by step of 1 !
+    """
+
+    def __init__(self, pipelines, output_map, auto_reset=False, stop_at_epoch=False):
+        if not isinstance(pipelines, Sequence):
+            pipelines = [pipelines]
+        size = sum(_pipelines_sizes(pipelines))
+        super().__init__(pipelines, output_map, size, auto_reset, stop_at_epoch)
+        self.batch_size = pipelines[0].batch_size
+
+    def __len__(self):
+        return int(ceil(self._size / self.batch_size))
+
+def prepare_dali_batch(batch, device, non_blocking):
+    x = batch[0]["data"]
+    y = batch[0]["label"]
+    y = y.squeeze().long().to(device)
+    return x, y
+
+#####
+
 
 def get_data_loaders(args):
     #TODO make Dali Loaders compatible with the pytorch ones?
@@ -58,12 +99,12 @@ def get_data_loaders(args):
     pipe = HybridTrainPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
                             data_dir=traindir, crop=crop_size, dali_cpu=False)
     pipe.build()
-    train_loader = DALIClassificationIterator(pipe, size=int(pipe.epoch_size("Reader") / args.world_size))
+    train_loader = DALILoader(pipe, ["data", "label"]) #size=int(pipe.epoch_size("Reader") / args.world_size))
 
     pipe = HybridValPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
                             data_dir=valdir, crop=crop_size, size=val_size)
     pipe.build()
-    val_loader = DALIClassificationIterator(pipe, size=int(pipe.epoch_size("Reader") / args.world_size))
+    val_loader = DALILoader(pipe, ["data", "label"]) #size=int(pipe.epoch_size("Reader") / args.world_size))
     
     return train_loader, val_loader
 
@@ -114,11 +155,13 @@ def run(args):
     wandb.watch(model)
     
     # dali loaders need extra class?
-    trainer = create_supervised_trainer(model, optimizer, F.nll_loss, device=device)
+    trainer = create_supervised_trainer(model, optimizer, F.nll_loss, device=device, 
+                                        prepare_batch=prepare_dali_batch)
     evaluator = create_supervised_evaluator(model,
                                             metrics={'accuracy': Accuracy(),
                                                      'nll': Loss(F.nll_loss)},
-                                            device=device)
+                                            device=device,
+                                            prepare_batch=prepare_dali_batch)
 
     desc = "ITERATION - loss: {:.2f}"
     pbar = tqdm(
@@ -130,9 +173,9 @@ def run(args):
     def log_training_loss(engine):
         iter = (engine.state.iteration - 1) % len(train_loader) + 1
 
-        if iter % log_interval == 0:
+        if iter % args.log_interval == 0:
             pbar.desc = desc.format(engine.state.output)
-            pbar.update(log_interval)
+            pbar.update(args.log_interval)
 
     @trainer.on(Events.EPOCH_COMPLETED)
     def log_training_results(engine):
@@ -208,6 +251,9 @@ if __name__ == "__main__":
     parser.add_argument('--local_rank', default=0, type=int,
             help='Used for multi-process training. Can either be manually set ' +
                 'or automatically set by using \'python -m multiproc\'.')
+
+    parser.add_argument('--log-interval', type=int, default=20,
+                        help='how many steps to take before logging (default:20)')
     
     # keep true unless we vary image sizes
     cudnn.benchmark = True
