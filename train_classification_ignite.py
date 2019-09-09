@@ -226,7 +226,7 @@ def run(args):
         wandb.watch(model)
     
     loss_fn = F.cross_entropy
-    accuracy = Accuracy(output_transform=lambda x, y: ())
+    accuracy = Accuracy()
 
     
     # dali loaders need extra class?
@@ -237,8 +237,8 @@ def run(args):
     evaluator = create_supervised_evaluator(model,
                                             metrics={'cross_entropy': Loss(loss_fn),
                                                     'accuracy': accuracy},
-                                            device=device, non_blocking=False) #,
-                                            #prepare_batch=prepare_dali_batch)
+                                            device=device, non_blocking=False ,
+                                            prepare_batch=prepare_dali_batch)
 
     desc = "ITERATION - loss: {:.2f}"
     pbar = tqdm(
@@ -263,8 +263,8 @@ def run(args):
         avg_loss = metrics['cross_entropy']
         
         # Dali resets
-        train_loader.reset()
-        val_loader.reset()
+        #train_loader.reset()
+        #val_loader.reset()
         
         tqdm.write(
             "Training Results - Epoch: {} Avg loss: {:.2f} Avg accuracy: {:.2f}".format(
