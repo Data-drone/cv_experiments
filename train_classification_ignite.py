@@ -14,10 +14,13 @@ import torch.optim
 import torch.utils.data
 import torchvision.models as models
 from torchvision.datasets import ImageFolder
+import optimisers as local_optimisers
 
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
 #from ignite.engine import create_supervised_dali_trainer, create_supervised_dali_evaluator
-from ignite.metrics import Accuracy, Loss
+from ignite.metrics import Accuracy, Loss, TopKCategoricalAccuracy, RunningAverage
+from lr_schedulers.onecyclelr import OneCycleLR
+from ignite.handlers import EarlyStopping
 
 from tqdm import tqdm
 
@@ -47,7 +50,7 @@ local_model_names = sorted(name for name in local_models.__dict__
 valid_models = model_names + local_model_names
 
 ###### DALI Specific ######
-
+# from https://github.com/chicham/ignite/tree/feature/dali
 def _pipelines_sizes(pipes):
     for p in pipes:
         p.build()
@@ -86,6 +89,7 @@ def prepare_dali_batch(batch, device=None, non_blocking=False):
     return (convert_tensor(x, device=device, non_blocking=non_blocking),
             convert_tensor(y, device=device, non_blocking=non_blocking))
 
+################################
 
 def get_data_loaders(args):
     #TODO make Dali Loaders compatible with the pytorch ones?
@@ -157,12 +161,29 @@ def run(args):
     if args.opt == 'adamw':
         optimizer = torch.optim.AdamW(model.parameters(), args.lr,
                                     weight_decay=args.weight_decay)
+
+    if args.opt == 'radam':
+        optimizer = local_optimisers.RAdam(model.parameters(), args.lr,
+                                          betas=(0.9, 0.999), eps=1e-8,
+                                           weight_decay=args.weight_decay)
+
+    # will need my own train loop function to make the fp16 from apex work
+    if args.fp16:
+        model, optimizer = amp.initialize(model, optimizer,
+                                      opt_level=args.opt_level,
+                                      keep_batchnorm_fp32=args.keep_batchnorm_fp32,
+                                      loss_scale=args.loss_scale
+                                      )
+
     
     if args.wandb_logging:    
         wandb.watch(model)
     
     loss_fn = F.cross_entropy
     accuracy = Accuracy()
+    top5_accuracy = TopKCategoricalAccuracy()
+
+    scheduler = OneCycleLR(optimizer, num_steps=args.epochs, lr_range=(args.lr/10, args.lr))
 
     
     # dali loaders need extra class?
@@ -172,9 +193,18 @@ def run(args):
 
     evaluator = create_supervised_evaluator(model,
                                             metrics={'cross_entropy': Loss(loss_fn),
-                                                    'accuracy': accuracy},
+                                                    'accuracy': accuracy,
+                                                    'top_5_accuracy': top5_accuracy},
                                             device=device, non_blocking=False ,
                                             prepare_batch=prepare_dali_batch)
+
+    def score_function(engine):
+        accur = engine.state.metrics['accuracy']
+        return accur
+    
+    handler = EarlyStopping(patience=10, score_function=score_function, trainer=trainer)
+    # Note: the handler is attached to an *Evaluator* (runs one epoch on validation dataset).
+    evaluator.add_event_handler(Events.COMPLETED, handler)
 
     desc = "ITERATION - loss: {:.2f}"
     pbar = tqdm(
@@ -192,10 +222,12 @@ def run(args):
 
     @trainer.on(Events.EPOCH_COMPLETED)
     def log_training_results(engine):
+        scheduler.step()
         pbar.refresh()
         evaluator.run(train_loader)
         metrics = evaluator.state.metrics
         avg_accuracy = metrics['accuracy']
+        avg_top5_accuracy = metrics['top_5_accuracy']
         avg_loss = metrics['cross_entropy']
         
         # Dali resets
@@ -203,8 +235,8 @@ def run(args):
         #val_loader.reset()
         
         tqdm.write(
-            "Training Results - Epoch: {} Avg loss: {:.2f} Avg accuracy: {:.2f}".format(
-                    engine.state.epoch, avg_loss, avg_accuracy)
+            "Training Results - Epoch: {} LR: {:.2f} Avg loss: {:.2f} Avg accuracy: {:.2f}, Avg Top-5 accuracy: {:.2f}".format(
+                    engine.state.epoch, scheduler.get_lr(), avg_loss, avg_accuracy, avg_top5_accuracy)
                 
         )
 
@@ -214,10 +246,11 @@ def run(args):
         metrics = evaluator.state.metrics
         avg_accuracy = metrics['accuracy']
         avg_loss = metrics['cross_entropy']
+        avg_top5_accuracy = metrics['top_5_accuracy']
+
         tqdm.write(
-            "Validation Results - Epoch: {} Avg loss: {:.2f} Avg accuracy: {:.2f}".format(
-                    engine.state.epoch, avg_loss, avg_accuracy
-                )
+            "Validation Results - Epoch: {} Avg loss: {:.2f} Avg accuracy: {:.2f}, Avg Top-5 accuracy: {:.2f}".format(
+                    engine.state.epoch, avg_loss, avg_accuracy, avg_top5_accuracy)
         )
 
         pbar.n = pbar.last_print_n = 0
@@ -238,7 +271,7 @@ if __name__ == "__main__":
                         choices=valid_models,
                         help='model architecture: | {0} (default: resnet18)'.format(valid_models))
     parser.add_argument('--opt', metavar='OPT', default='sgd',
-                        choices=['sgd', 'adam', 'adamw'],
+                        choices=['sgd', 'adam', 'adamw', 'radam'],
                         help='optimiser function')
     parser.add_argument('--num-classes', '-nc', metavar='N', default=10, type=int,
                         help='num classes for classification task (default 10)')
