@@ -16,7 +16,7 @@ import torchvision.models as models
 from torchvision.datasets import ImageFolder
 
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
-
+#from ignite.engine import create_supervised_dali_trainer, create_supervised_dali_evaluator
 from ignite.metrics import Accuracy, Loss
 
 from tqdm import tqdm
@@ -74,11 +74,79 @@ class DALILoader(DALIGenericIterator):
     def __len__(self):
         return int(ceil(self._size / self.batch_size))
 
-def prepare_dali_batch(batch, device, non_blocking):
+from ignite.utils import convert_tensor
+
+def prepare_dali_batch(batch, device=None, non_blocking=False):
+    # extract out of data pipeline
     x = batch[0]["data"]
     y = batch[0]["label"]
-    y = y.squeeze().long().to(device)
-    return x, y
+    # convert
+    y = y.squeeze().long()
+    
+    return (convert_tensor(x, device=device, non_blocking=non_blocking),
+            convert_tensor(y, device=device, non_blocking=non_blocking))
+
+#### Dali Engine
+import torch.distributed as dist
+from ignite.engine import Engine
+
+def _prepare_batch(batch, output_map=("data", "label")):
+    outputs = [[b[o] for o in output_map] for b in batch]
+    return tuple(zip(*outputs))
+
+def reduce_tensor(tensor, world_size):
+    rt = tensor.clone()
+    dist.all_reduce(rt, op=dist.ReduceOp.SUM)
+    rt /= world_size
+    return rt
+
+def create_supervised_dali_trainer(
+    model,
+    optimizer,
+    loss_fn,
+    world_size,
+    output_map=("data", "label"),
+    prepare_batch=_prepare_batch,
+    output_transform=lambda x, y, y_pred, loss: loss.item(),
+):
+    def _update(engine, batch):
+
+        model.train()
+        optimizer.zero_grad()
+        x, y = prepare_batch(batch, output_map=output_map)
+        y_pred = model(x)
+        loss = loss_fn(y_pred, y)
+        reduced_loss = reduce_tensor(loss, world_size)
+        reduced_loss.backward()
+        optimizer.step()
+        return output_transform(x, y, y_pred, reduced_loss)
+
+    engine = Engine(_update)
+    return engine
+
+
+def create_supervised_dali_evaluator(
+    model,
+    metrics,
+    world_size,
+    output_map=("data", "label"),
+    prepare_batch=_prepare_batch,
+    output_transform=lambda x, y, y_pred: (y_pred, y),
+):
+    def _inference(engine, batch):
+        model.eval()
+
+        with torch.no_grad():
+            x, y = prepare_batch(batch, output_map=output_map)
+            y_pred = model(x)
+            return output_transform(x, y, y_pred)
+
+    engine = Engine(_inference)
+
+    for name, metric in metrics.items():
+        metric.attach(engine, name)
+
+    return engine
 
 #####
 
@@ -99,12 +167,14 @@ def get_data_loaders(args):
     pipe = HybridTrainPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
                             data_dir=traindir, crop=crop_size, dali_cpu=False)
     pipe.build()
-    train_loader = DALILoader(pipe, ["data", "label"]) #size=int(pipe.epoch_size("Reader") / args.world_size))
+    train_loader = DALILoader(pipe, ["data", "label"], auto_reset=True, stop_at_epoch=True) 
+    #size=int(pipe.epoch_size("Reader") / args.world_size))
 
     pipe = HybridValPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
                             data_dir=valdir, crop=crop_size, size=val_size)
     pipe.build()
-    val_loader = DALILoader(pipe, ["data", "label"]) #size=int(pipe.epoch_size("Reader") / args.world_size))
+    val_loader = DALILoader(pipe, ["data", "label"], auto_reset=True, stop_at_epoch=True) 
+    #size=int(pipe.epoch_size("Reader") / args.world_size))
     
     return train_loader, val_loader
 
@@ -151,17 +221,24 @@ def run(args):
     if args.opt == 'adamw':
         optimizer = torch.optim.AdamW(model.parameters(), args.lr,
                                     weight_decay=args.weight_decay)
-        
-    wandb.watch(model)
+    
+    if args.wandb_logging:    
+        wandb.watch(model)
+    
+    loss_fn = F.cross_entropy
+    accuracy = Accuracy(output_transform=lambda x, y: ())
+
     
     # dali loaders need extra class?
-    trainer = create_supervised_trainer(model, optimizer, F.nll_loss, device=device, 
+    trainer = create_supervised_trainer(model, optimizer, loss_fn,
+                                        device=device, non_blocking=False,
                                         prepare_batch=prepare_dali_batch)
+
     evaluator = create_supervised_evaluator(model,
-                                            metrics={'accuracy': Accuracy(),
-                                                     'nll': Loss(F.nll_loss)},
-                                            device=device,
-                                            prepare_batch=prepare_dali_batch)
+                                            metrics={'cross_entropy': Loss(loss_fn),
+                                                    'accuracy': accuracy},
+                                            device=device, non_blocking=False) #,
+                                            #prepare_batch=prepare_dali_batch)
 
     desc = "ITERATION - loss: {:.2f}"
     pbar = tqdm(
@@ -183,15 +260,16 @@ def run(args):
         evaluator.run(train_loader)
         metrics = evaluator.state.metrics
         avg_accuracy = metrics['accuracy']
-        avg_nll = metrics['nll']
+        avg_loss = metrics['cross_entropy']
         
         # Dali resets
         train_loader.reset()
         val_loader.reset()
         
         tqdm.write(
-            "Training Results - Epoch: {}  Avg accuracy: {:.2f} Avg loss: {:.2f}"
-            .format(engine.state.epoch, avg_accuracy, avg_nll)
+            "Training Results - Epoch: {} Avg loss: {:.2f} Avg accuracy: {:.2f}".format(
+                    engine.state.epoch, avg_loss, avg_accuracy)
+                
         )
 
     @trainer.on(Events.EPOCH_COMPLETED)
@@ -199,10 +277,12 @@ def run(args):
         evaluator.run(val_loader)
         metrics = evaluator.state.metrics
         avg_accuracy = metrics['accuracy']
-        avg_nll = metrics['nll']
+        avg_loss = metrics['cross_entropy']
         tqdm.write(
-            "Validation Results - Epoch: {}  Avg accuracy: {:.2f} Avg loss: {:.2f}"
-            .format(engine.state.epoch, avg_accuracy, avg_nll))
+            "Validation Results - Epoch: {} Avg loss: {:.2f} Avg accuracy: {:.2f}".format(
+                    engine.state.epoch, avg_loss, avg_accuracy
+                )
+        )
 
         pbar.n = pbar.last_print_n = 0
 
@@ -212,7 +292,7 @@ def run(args):
 
 if __name__ == "__main__":
     
-    wandb.init(project="image_classification_opt")
+    
     
     parser = ArgumentParser(description="Classification Model Training")
     
@@ -254,12 +334,18 @@ if __name__ == "__main__":
 
     parser.add_argument('--log-interval', type=int, default=20,
                         help='how many steps to take before logging (default:20)')
+
+    parser.add_argument('--wandb-logging', action='store_true')
     
     # keep true unless we vary image sizes
     cudnn.benchmark = True
 
     args = parser.parse_args()
-    wandb.config.update(args)
+
+    if args.wandb_logging:
+        
+        wandb.init(project="image_classification_opt")
+        wandb.config.update(args)
     
     # make apex optional - we aren't using distributed
     if args.fp16: #or args.distributed:
