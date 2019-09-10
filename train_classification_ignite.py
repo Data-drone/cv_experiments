@@ -264,7 +264,7 @@ def run(args):
 
         return res
     
-    handler = EarlyStopping(patience=3, score_function=score_function, trainer=trainer)
+    handler = EarlyStopping(patience=3, score_function=score_function, trainer=evaluator)
     # Note: the handler is attached to an *Evaluator* (runs one epoch on validation dataset).
     evaluator.add_event_handler(Events.COMPLETED, handler)
 
