@@ -21,6 +21,7 @@ from ignite.engine import Events, create_supervised_trainer, create_supervised_e
 from ignite.metrics import Accuracy, Loss
 from lr_schedulers.onecyclelr import OneCycleLR
 from ignite.handlers import EarlyStopping
+from ignite.engine.engine import Engine
 
 from tqdm import tqdm
 
@@ -89,6 +90,53 @@ def prepare_dali_batch(batch, device=None, non_blocking=False):
     return (convert_tensor(x, device=device, non_blocking=non_blocking),
             convert_tensor(y, device=device, non_blocking=non_blocking))
 
+################## trainer for apex to enable fp16 ######
+
+
+
+def create_supervised_fp16_trainer(model, optimizer, loss_fn,
+                              device=None, non_blocking=False,
+                              prepare_batch=prepare_dali_batch,
+                              output_transform=lambda x, y, y_pred, loss: loss.item()):
+    if device:
+        model.to(device)
+
+    def _update(engine, batch):
+        model.train()
+        optimizer.zero_grad()
+        x, y = prepare_batch(batch, device=device, non_blocking=non_blocking)
+        y_pred = model(x)
+        loss = loss_fn(y_pred, y)
+        with amp.scale_loss(loss, optimizer) as scaled_loss:
+            scaled_loss.backward()
+        optimizer.step()
+        return output_transform(x, y, y_pred, loss)
+
+    return Engine(_update) 
+
+# created to move the model move device out of loop so that the amp call can trigger
+def create_supervised_fp16_evaluator(model, metrics=None,
+                                device=None, non_blocking=False,
+                                prepare_batch=prepare_dali_batch,
+                                output_transform=lambda x, y, y_pred: (y_pred, y,)):
+
+    metrics = metrics or {}
+
+    def _inference(engine, batch):
+        model.eval()
+        with torch.no_grad():
+            x, y = prepare_batch(batch, device=device, non_blocking=non_blocking)
+            y_pred = model(x)
+            return output_transform(x, y, y_pred)
+
+    engine = Engine(_inference)
+
+    for name, metric in metrics.items():
+        metric.attach(engine, name)
+
+    return engine
+
+
 ################################
 
 def get_data_loaders(args):
@@ -143,6 +191,7 @@ def run(args):
         model.aux_logits=False
 
     device = 'cuda'
+    model.to(device)
     
     ### data loaders
     train_loader, val_loader = get_data_loaders(args)
@@ -185,21 +234,37 @@ def run(args):
 
     
     # dali loaders need extra class?
-    trainer = create_supervised_trainer(model, optimizer, loss_fn,
+    if args.fp16:
+        trainer = create_supervised_fp16_trainer(model, optimizer, loss_fn,
+                                        device=device, non_blocking=False,
+                                        prepare_batch=prepare_dali_batch)
+        evaluator = create_supervised_fp16_evaluator(model,
+                                            metrics={'cross_entropy': Loss(loss_fn),
+                                                    'accuracy': accuracy},
+                                            device=device, non_blocking=False ,
+                                            prepare_batch=prepare_dali_batch)                                        
+    else:
+        trainer = create_supervised_trainer(model, optimizer, loss_fn,
                                         device=device, non_blocking=False,
                                         prepare_batch=prepare_dali_batch)
 
-    evaluator = create_supervised_evaluator(model,
+        evaluator = create_supervised_evaluator(model,
                                             metrics={'cross_entropy': Loss(loss_fn),
                                                     'accuracy': accuracy},
                                             device=device, non_blocking=False ,
                                             prepare_batch=prepare_dali_batch)
 
     def score_function(engine):
+        # we want to stop training at 94%
         accur = engine.state.metrics['accuracy']
-        return accur
+        if accur > 0.94:
+            res = True
+        else:
+            res = accur
+
+        return res
     
-    handler = EarlyStopping(patience=10, score_function=score_function, trainer=trainer)
+    handler = EarlyStopping(patience=3, score_function=score_function, trainer=trainer)
     # Note: the handler is attached to an *Evaluator* (runs one epoch on validation dataset).
     evaluator.add_event_handler(Events.COMPLETED, handler)
 
