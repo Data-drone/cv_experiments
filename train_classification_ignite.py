@@ -18,7 +18,7 @@ import optimisers as local_optimisers
 
 from ignite.engine import Events, create_supervised_trainer, create_supervised_evaluator
 #from ignite.engine import create_supervised_dali_trainer, create_supervised_dali_evaluator
-from ignite.metrics import Accuracy, Loss, TopKCategoricalAccuracy, RunningAverage
+from ignite.metrics import Accuracy, Loss
 from lr_schedulers.onecyclelr import OneCycleLR
 from ignite.handlers import EarlyStopping
 
@@ -92,7 +92,6 @@ def prepare_dali_batch(batch, device=None, non_blocking=False):
 ################################
 
 def get_data_loaders(args):
-    #TODO make Dali Loaders compatible with the pytorch ones?
     
     traindir = args.data[0]
     valdir= args.data[1]
@@ -227,13 +226,9 @@ def run(args):
         avg_accuracy = metrics['accuracy']
         avg_loss = metrics['cross_entropy']
         
-        # Dali resets
-        #train_loader.reset()
-        #val_loader.reset()
-        
         tqdm.write(
-            "Training Results - Epoch: {} LR: {:.2f} Avg loss: {:.2f} Avg accuracy: {:.2f}, Avg Top-5 accuracy: {:.2f}".format(
-                    engine.state.epoch, scheduler.get_lr(), avg_loss, avg_accuracy, avg_top5_accuracy)
+            "Training Results - Epoch: {} LR: {:.2f} Avg loss: {:.2f} Avg accuracy: {:.2f}".format(
+                    engine.state.epoch, scheduler.get_lr(), avg_loss, avg_accuracy, )
                 
         )
 
@@ -243,11 +238,10 @@ def run(args):
         metrics = evaluator.state.metrics
         avg_accuracy = metrics['accuracy']
         avg_loss = metrics['cross_entropy']
-        avg_top5_accuracy = metrics['top_5_accuracy']
 
         tqdm.write(
-            "Validation Results - Epoch: {} Avg loss: {:.2f} Avg accuracy: {:.2f}, Avg Top-5 accuracy: {:.2f}".format(
-                    engine.state.epoch, avg_loss, avg_accuracy, avg_top5_accuracy)
+            "Validation Results - Epoch: {} Avg loss: {:.2f} Avg accuracy: {:.2f}".format(
+                    engine.state.epoch, avg_loss, avg_accuracy, )
         )
 
         pbar.n = pbar.last_print_n = 0
