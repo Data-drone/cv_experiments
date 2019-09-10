@@ -181,8 +181,7 @@ def run(args):
     
     loss_fn = F.cross_entropy
     accuracy = Accuracy()
-    top5_accuracy = TopKCategoricalAccuracy()
-
+    
     scheduler = OneCycleLR(optimizer, num_steps=args.epochs, lr_range=(args.lr/10, args.lr))
 
     
@@ -193,8 +192,7 @@ def run(args):
 
     evaluator = create_supervised_evaluator(model,
                                             metrics={'cross_entropy': Loss(loss_fn),
-                                                    'accuracy': accuracy,
-                                                    'top_5_accuracy': top5_accuracy},
+                                                    'accuracy': accuracy},
                                             device=device, non_blocking=False ,
                                             prepare_batch=prepare_dali_batch)
 
@@ -227,7 +225,6 @@ def run(args):
         evaluator.run(train_loader)
         metrics = evaluator.state.metrics
         avg_accuracy = metrics['accuracy']
-        avg_top5_accuracy = metrics['top_5_accuracy']
         avg_loss = metrics['cross_entropy']
         
         # Dali resets

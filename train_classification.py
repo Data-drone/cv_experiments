@@ -117,6 +117,7 @@ def to_python_float(t):
 
 def accuracy(output, target, topk=(1,)):
     """Computes the precision@k for the specified values of k"""
+    # should we be calling this accuracy?
     maxk = max(topk)
     batch_size = target.size(0)
 
