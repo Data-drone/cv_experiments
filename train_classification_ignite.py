@@ -256,6 +256,8 @@ def run(args):
 
     def score_function(engine):
         # we want to stop training at 94%
+        # early stopping just looks at metric no changing?
+        # how to threshold this?
         accur = engine.state.metrics['accuracy']
         if accur > 0.94:
             res = True
@@ -264,9 +266,9 @@ def run(args):
 
         return res
     
-    handler = EarlyStopping(patience=3, score_function=score_function, trainer=evaluator)
+    es_handler = EarlyStopping(patience=5, score_function=score_function, trainer=trainer)
     # Note: the handler is attached to an *Evaluator* (runs one epoch on validation dataset).
-    evaluator.add_event_handler(Events.COMPLETED, handler)
+    evaluator.add_event_handler(Events.COMPLETED, es_handler)
 
     desc = "ITERATION - loss: {:.2f}"
     pbar = tqdm(
