@@ -21,7 +21,8 @@ from ignite.engine import Events, create_supervised_trainer, create_supervised_e
 from ignite.metrics import Accuracy, Loss
 from lr_schedulers.onecyclelr import OneCycleLR
 from ignite.handlers import EarlyStopping
-from ignite.engine.engine import Engine
+from ignite.engine.engine import Engine, Events
+from ignite.handlers import Timer
 
 from tqdm import tqdm
 
@@ -253,6 +254,13 @@ def run(args):
                                                     'accuracy': accuracy},
                                             device=device, non_blocking=False ,
                                             prepare_batch=prepare_dali_batch)
+        
+    timer = Timer(average=True)
+    timer.attach(trainer,
+                start=Events.EPOCH_STARTED,
+                resume=Events.ITERATION_STARTED,
+                pause=Events.ITERATION_COMPLETED,
+                step=Events.ITERATION_COMPLETED)
 
     def score_function(engine):
         # we want to stop training at 94%
@@ -266,9 +274,9 @@ def run(args):
 
         return res
     
-    es_handler = EarlyStopping(patience=5, score_function=score_function, trainer=trainer)
+    #es_handler = EarlyStopping(patience=5, score_function=score_function, trainer=trainer)
     # Note: the handler is attached to an *Evaluator* (runs one epoch on validation dataset).
-    evaluator.add_event_handler(Events.COMPLETED, es_handler)
+    #evaluator.add_event_handler(Events.COMPLETED, es_handler)
 
     desc = "ITERATION - loss: {:.2f}"
     pbar = tqdm(
@@ -315,6 +323,8 @@ def run(args):
 
     trainer.run(train_loader, max_epochs=args.epochs)
     pbar.close()
+    
+    print("Average Time for batch: {:.3f}".format(timer.value()))
     
 
 if __name__ == "__main__":
