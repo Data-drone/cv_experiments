@@ -61,7 +61,7 @@ parser.add_argument('--arch', '-a', metavar='ARCH',
                     choices=valid_models,
                     help='model architecture: | {0} (default: resnet18)'.format(valid_models))
 parser.add_argument('--opt', metavar='OPT', default='sgd',
-                    choices=['sgd', 'adam', 'adamw', 'radam'],
+                    choices=['sgd', 'adam', 'adamw', 'radam', 'ranger'],
                     help='optimiser function')
 parser.add_argument('--num-classes', '-nc', metavar='N', default=1000, type=int,
                     help='num classes for classification task (default 1000)')
@@ -302,6 +302,10 @@ def main():
         optimizer = local_optimisers.RAdam(model.parameters(), args.lr,
                                           betas=(0.9, 0.999), eps=1e-8,
                                            weight_decay=args.weight_decay)
+
+    if args.opt == 'ranger':
+        optimizer = local_optimisers.Ranger(model.parameters(), args.lr,
+                                            weight_decay=args.weight_decay)
 
     #scheduler = MultiStepLR(
     #    optimizer=optimizer, 
