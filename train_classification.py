@@ -372,7 +372,7 @@ def main():
         
     #Add model save point
     # attribute error? 
-    torch.save(model, 'log_models/' + 'classification-checkpoint.pth.tar')
+    #torch.save(model, 'log_models/' + 'classification-checkpoint.pth.tar')
 
 if __name__ == '__main__':
     main()

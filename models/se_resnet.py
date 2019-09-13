@@ -5,10 +5,14 @@
 import torch.nn as nn
 from torch.hub import load_state_dict_from_url
 from torchvision.models import ResNet
-from senet.se_module import SELayer
+from .se_module import SELayer
 
 # need adapt to Torchvision style calls to integrate
-__all__ = ['se_resnet18', ]
+__all__ = ['se_resnet18']
+
+model_urls = {
+    'se_resnet18': ''
+}
 
 def conv3x3(in_planes, out_planes, stride=1):
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
@@ -91,15 +95,31 @@ class SEBottleneck(nn.Module):
 
         return out
 
+    
+def _se_resnet(arch, block, layers, pretrained, progress, **kwargs):
+    # adapted from the _resnet function in torch vision
+    model = ResNet(block, layers, **kwargs)
+    model.avgpool = nn.AdaptiveAvgPool2d(1)
+    
+    if pretrained:
+        state_dict = load_state_dict_from_url(model_urls[arch],
+                                              progress=progress)
+        model.load_state_dict(state_dict)
+    return model
+    
 
-def se_resnet18(num_classes=1_000):
-    """Constructs a ResNet-18 model.
+def se_resnet18(pretrained=False, progress=True, **kwargs):
+    r"""ResNet-18 model from
+    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
+    with added Squeeze Excitation layers from
+    "Squeeze-and-Excitation Networks" <https://arxiv.org/abs/1709.01507>
+    
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
     """
-    model = ResNet(SEBasicBlock, [2, 2, 2, 2], num_classes=num_classes)
-    model.avgpool = nn.AdaptiveAvgPool2d(1)
-    return model
+    return _se_resnet('se_resnet18', SEBasicBlock, [2, 2, 2, 2], pretrained, progress,
+                     **kwargs)
 
 
 def se_resnet34(num_classes=1_000):
@@ -145,6 +165,8 @@ def se_resnet152(num_classes=1_000):
     return model
 
 
+
+### review these later
 class CifarSEBasicBlock(nn.Module):
     def __init__(self, inplanes, planes, stride=1, reduction=16):
         super(CifarSEBasicBlock, self).__init__()
@@ -176,7 +198,7 @@ class CifarSEBasicBlock(nn.Module):
 
         return out
 
-
+    
 class CifarSEResNet(nn.Module):
     def __init__(self, block, n_size, num_classes=10, reduction=16):
         super(CifarSEResNet, self).__init__()
