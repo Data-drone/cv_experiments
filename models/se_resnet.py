@@ -1,5 +1,5 @@
 ### SE Layer from: https://arxiv.org/abs/1709.01507
-# copied from: https://github.com/moskomule/senet.pytorch/blob/master/senet/se_resnet.py
+# based on: https://github.com/moskomule/senet.pytorch/blob/master/senet/se_resnet.py
 
 
 import torch.nn as nn
@@ -8,11 +8,15 @@ from torchvision.models import ResNet
 from .se_module import SELayer
 
 # need adapt to Torchvision style calls to integrate
-__all__ = ['se_resnet18', 'se_resnet34']
+__all__ = ['se_resnet18', 'se_resnet34', 'se_resnet50', 'se_resnet101', 'se_resnet152']
 
+# expects pth files
 model_urls = {
     'se_resnet18': '',
-    'se_resnet34': ''
+    'se_resnet34': '',
+    'se_resnet50': '',
+    'se_resnet101': '',
+    'se_resnet152': ''
 }
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -135,38 +139,41 @@ def se_resnet34(pretrained=False, progress=True, **kwargs):
                      **kwargs)
 
 
-def se_resnet50(num_classes=1_000, pretrained=False):
-    """Constructs a ResNet-50 model.
+def se_resnet50(pretrained=False, progress=True, **kwargs):
+    """ResNet-50 model from
+    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
+    with added Squeeze Excitation layers from
+    "Squeeze-and-Excitation Networks" <https://arxiv.org/abs/1709.01507>
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
     """
-    model = ResNet(SEBottleneck, [3, 4, 6, 3], num_classes=num_classes)
-    model.avgpool = nn.AdaptiveAvgPool2d(1)
-    if pretrained:
-        model.load_state_dict(load_state_dict_from_url(
-            "https://github.com/moskomule/senet.pytorch/releases/download/archive/seresnet50-60a8950a85b2b.pkl"))
-    return model
+    return _se_resnet('se_resnet50', SEBottleneck, [3,4,6,3], pretrained, progress,
+                     **kwargs)
 
-
-def se_resnet101(num_classes=1_000):
-    """Constructs a ResNet-101 model.
+def se_resnet101(pretrained=False, progress=True, **kwargs):
+    """ResNet-101 model from
+    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
+    with added Squeeze Excitation layers from
+    "Squeeze-and-Excitation Networks" <https://arxiv.org/abs/1709.01507>
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
     """
-    model = ResNet(SEBottleneck, [3, 4, 23, 3], num_classes=num_classes)
-    model.avgpool = nn.AdaptiveAvgPool2d(1)
-    return model
+    return _se_resnet('se_resnet101', SEBottleneck, [3,4,23,3], pretrained, progress,
+                     **kwargs)
 
-
-def se_resnet152(num_classes=1_000):
-    """Constructs a ResNet-152 model.
+def se_resnet152(pretrained=False, progress=True, **kwargs):
+    """ResNet-152 model from
+    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
+    with added Squeeze Excitation layers from
+    "Squeeze-and-Excitation Networks" <https://arxiv.org/abs/1709.01507>
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
     """
-    model = ResNet(SEBottleneck, [3, 8, 36, 3], num_classes=num_classes)
-    model.avgpool = nn.AdaptiveAvgPool2d(1)
-    return model
-
+    return _se_resnet('se_resnet152', SEBottleneck, [3,8,36,3], pretrained, progress,
+                     **kwargs)
 
 
 ### review these later
