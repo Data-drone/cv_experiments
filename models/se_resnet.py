@@ -8,10 +8,11 @@ from torchvision.models import ResNet
 from .se_module import SELayer
 
 # need adapt to Torchvision style calls to integrate
-__all__ = ['se_resnet18']
+__all__ = ['se_resnet18', 'se_resnet34']
 
 model_urls = {
-    'se_resnet18': ''
+    'se_resnet18': '',
+    'se_resnet34': ''
 }
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -121,15 +122,17 @@ def se_resnet18(pretrained=False, progress=True, **kwargs):
     return _se_resnet('se_resnet18', SEBasicBlock, [2, 2, 2, 2], pretrained, progress,
                      **kwargs)
 
-
-def se_resnet34(num_classes=1_000):
-    """Constructs a ResNet-34 model.
+def se_resnet34(pretrained=False, progress=True, **kwargs):
+    r"""ResNet-34 model from
+    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
+    with added Squeeze Excitation layers from
+    "Squeeze-and-Excitation Networks" <https://arxiv.org/abs/1709.01507>
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
     """
-    model = ResNet(SEBasicBlock, [3, 4, 6, 3], num_classes=num_classes)
-    model.avgpool = nn.AdaptiveAvgPool2d(1)
-    return model
+    return _se_resnet('se_resnet34', SEBasicBlock, [3,4,6,3], pretrained, progress,
+                     **kwargs)
 
 
 def se_resnet50(num_classes=1_000, pretrained=False):
