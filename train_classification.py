@@ -248,7 +248,16 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-    
+
+def save_checkpoint(state, is_best, folder_name='log_models'):
+    # checkpoint.pth.tar
+    filename = os.path.join(folder_name, 'img_class_chkpnt.pth.tar')
+
+    torch.save(state, filename)
+    #if is_best:
+    #    shutil.copyfile(filename, 'img_class_model_best.pth.tar')
+
+
     
 def main():
     
@@ -369,6 +378,12 @@ def main():
         # for each epoch need to reset
         train_loader.reset()
         val_loader.reset()
+
+        save_checkpoint({'epoch': epoch + 1,
+                        'arch': args.arch,
+                        'state_dict': model.state_dict(),
+                        'val_loss': val_loss,
+                        'optimizer': optimizer.state_dict()})
         
     #Add model save point
     # attribute error? 
