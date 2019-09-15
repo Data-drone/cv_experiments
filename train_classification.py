@@ -254,8 +254,8 @@ def save_checkpoint(state, is_best, folder_name='log_models'):
     filename = os.path.join(folder_name, 'img_class_chkpnt.pth.tar')
 
     torch.save(state, filename)
-    #if is_best:
-    #    shutil.copyfile(filename, 'img_class_model_best.pth.tar')
+    if is_best:
+        shutil.copyfile(filename, 'img_class_model_best.pth.tar')
 
 
     
@@ -383,7 +383,8 @@ def main():
                         'arch': args.arch,
                         'state_dict': model.state_dict(),
                         'val_loss': val_loss,
-                        'optimizer': optimizer.state_dict()})
+                        'optimizer': optimizer.state_dict()},
+                        False)
         
     #Add model save point
     # attribute error? 
