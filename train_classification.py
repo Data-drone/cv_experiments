@@ -223,7 +223,7 @@ def validate(val_loader, model, criterion, epoch) -> float:
             print("{0} - {1}".format(progress, stats))
     wandb.log({"epoch": epoch, "val_loss": loss_list.avg, "val_top1": top1.avg,  "val_top5": top5.avg})
 
-    return loss_list.avg
+    return {'val_loss': loss_list.avg, 'val_top1': top1.avg}
     
     
 # add a custom learning rate optimiser as per the apex reference
@@ -315,20 +315,6 @@ def main():
     if args.opt == 'ranger':
         optimizer = local_optimisers.Ranger(model.parameters(), args.lr,
                                             weight_decay=args.weight_decay)
-
-    #scheduler = MultiStepLR(
-    #    optimizer=optimizer, 
-    #    milestones=[43, 54], 
-    #    gamma=0.1)
-    
-    #scheduler = ReduceLROnPlateau(optimizer, 'min')
-    #scheduler = 
-
-    # scale lr
-    # Scale learning rate based on global batch size
-    # distributed only
-    #args.lr = args.lr*float(args.batch_size*args.world_size)/256. 
-
     
     if args.fp16:
         model, optimizer = amp.initialize(model, optimizer,
@@ -365,30 +351,28 @@ def main():
 
     wandb.watch(model)
 
+    best_top1 = 0
+    
     for epoch in range(0, args.epochs):
 
         # train loop
         train(train_loader, model, criterion, optimizer, epoch, scheduler)
-        val_loss = validate(val_loader, model, criterion, epoch)
-        
-        # ReduceLROnPlateau doesn't have the get_lr property
-        #print('learn rate: {0}'.format(scheduler.get_lr()))
-        #wandb.log({"learn_rate": scheduler.get_lr()})
+        val_dict = validate(val_loader, model, criterion, epoch)
 
         # for each epoch need to reset
         train_loader.reset()
         val_loader.reset()
+        
+        is_best = prec1 > best_prec1
+        best_top1 = max(val_dict['val_top1'], best_prec1)
 
         save_checkpoint({'epoch': epoch + 1,
                         'arch': args.arch,
                         'state_dict': model.state_dict(),
-                        'val_loss': val_loss,
+                        'val_loss': val_dict['val_loss'],
                         'optimizer': optimizer.state_dict()},
-                        False)
+                        is_best)
         
-    #Add model save point
-    # attribute error? 
-    #torch.save(model, 'log_models/' + 'classification-checkpoint.pth.tar')
-
+        
 if __name__ == '__main__':
     main()
