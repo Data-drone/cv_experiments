@@ -167,6 +167,16 @@ def get_data_loaders(args):
     return train_loader, val_loader
 
 
+def save_checkpoint(state, is_best, folder_name='log_models'):
+    # checkpoint.pth.tar
+    filename = os.path.join(folder_name, 'img_class_ignite_chkpnt.pth.tar')
+
+    torch.save(state, filename)
+    if is_best:
+        shutil.copyfile(filename, 'img_class_ignite_model_best.pth.tar')
+
+
+
 def run(args):
     
     # distributed training variable
@@ -261,6 +271,13 @@ def run(args):
                 resume=Events.ITERATION_STARTED,
                 pause=Events.ITERATION_COMPLETED,
                 step=Events.ITERATION_COMPLETED)
+    
+    epoch_timer = Timer(average=True)
+    epoch_timer.attach(trainer,
+                      start = Events.EPOCH_STARTED,
+                      resume = Events.EPOCH_STARTED,
+                      pause=Events.EPOCH_COMPLETED,
+                      step=Events.EPOCH_COMPLETED)
 
     def score_function(engine):
         # we want to stop training at 94%
@@ -306,6 +323,8 @@ def run(args):
                     engine.state.epoch, scheduler.get_lr(), avg_loss, avg_accuracy, )
                 
         )
+        
+        print("Average Batch Time: {:.3f} Epoch Time: {:.3f} ".format(timer.value(), epoch_timer.value()))
 
     @trainer.on(Events.EPOCH_COMPLETED)
     def log_validation_results(engine):
@@ -320,11 +339,18 @@ def run(args):
         )
 
         pbar.n = pbar.last_print_n = 0
+        
+        save_checkpoint({'epoch': engine.state.epoch + 1,
+                        'arch': args.arch,
+                        'state_dict': model.state_dict(),
+                        'val_loss': avg_loss['val_loss'],
+                        'optimizer': optimizer.state_dict()},
+                        False)
 
     trainer.run(train_loader, max_epochs=args.epochs)
     pbar.close()
     
-    print("Average Time for batch: {:.3f}".format(timer.value()))
+    print("Average Batch Time: {:.3f} Epoch Time: {:.3f} ".format(timer.value(), epoch_timer.value()))
     
 
 if __name__ == "__main__":
