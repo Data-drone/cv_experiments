@@ -3,6 +3,7 @@
 from argparse import ArgumentParser
 from typing import Sequence
 from math import ceil
+import os
 
 import models as local_models
 
@@ -343,7 +344,7 @@ def run(args):
         save_checkpoint({'epoch': engine.state.epoch + 1,
                         'arch': args.arch,
                         'state_dict': model.state_dict(),
-                        'val_loss': avg_loss['val_loss'],
+                        'val_loss': avg_loss,
                         'optimizer': optimizer.state_dict()},
                         False)
 
