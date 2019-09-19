@@ -17,6 +17,9 @@
 
 #python3 train_classification.py -a optresnet18 --opt 'adam' -nc 10 -e 25  --lr 0.02 -b 256 --fp16 --opt-level 'O1' "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 
+python3 train_classification.py -a attn_resnet18 --opt 'sgd' -nc 10 -e 25  --lr 0.02 -b 8 --fp16 --opt-level 'O2' "../cv_data/cifar10/train" "../cv_data/cifar10/test"
+
+
 # causes overflow
 #python3 train_classification.py -a optresnet18 --opt 'adam' -nc 10 -e 25  --lr 0.9 -b 256 --fp16 --opt-level 'O1' "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 
@@ -45,7 +48,7 @@
 #python3 train_classification.py -a se_resnet34 --opt 'ranger' -nc 100 -e 60  --lr 0.1 -b 128 --fp16 --opt-level 'O2' "../cv_data/cifar100/train" "../cv_data/cifar100/test"
 
 ### ignite testing
-python3 train_classification_ignite.py -a optresnet18 --opt 'radam' -nc 10 -e 3  --lr 0.1 -b 128 --fp16 --opt-level 'O0'  "../cv_data/cifar10/train" "../cv_data/cifar10/test"
+#python3 train_classification_ignite.py -a optresnet18 --opt 'radam' -nc 10 -e 3  --lr 0.1 -b 128 --fp16 --opt-level 'O0'  "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 
 #python3 train_classification_ignite.py -a optresnet18 --opt 'radam' -nc 10 -e 3  --lr 0.1 -b 128 --fp16 --opt-level 'O1'  "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 
