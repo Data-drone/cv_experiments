@@ -362,6 +362,7 @@ def main():
         # for each epoch need to reset
         train_loader.reset()
         val_loader.reset()
+        prec1 = val_dict['val_top1']
         
         is_best = prec1 > best_prec1
         best_top1 = max(val_dict['val_top1'], best_prec1)
