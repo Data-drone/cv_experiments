@@ -256,6 +256,15 @@ def save_checkpoint(state, is_best, folder_name='log_models'):
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, 'img_class_model_best.pth.tar')
+        
+        # specify inputs and outputs for onnx
+        dummy_input = torch.zeros(1, 3, 224, 224) # need revisit this
+        inputs = ['images']
+        outputs = ['scores']
+        dynamic_axes = {'images': {0: 'batch'}, 'scores': {0: 'batch'}}
+        
+        torch.onnx.export(model, dummy_input, "img_class.onnx", verbose=True, \
+                          input_names=inputs, output_names=outputs)
 
 
     
