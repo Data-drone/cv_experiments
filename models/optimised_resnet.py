@@ -37,6 +37,7 @@ def conv1x1(in_planes, out_planes, stride=1):
 
 
 # adjust to celu
+# celu not supported in ONNX
 class BasicBlock(nn.Module):
     expansion = 1
 

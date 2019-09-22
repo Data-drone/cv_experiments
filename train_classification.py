@@ -264,15 +264,17 @@ def save_checkpoint(state, is_best, model, folder_name='log_models'):
         shutil.copyfile(filenamepath, os.path.join(folder_name, filename + '_best.pth.tar'))
         
         # specify inputs and outputs for onnx
-        dummy_input = torch.zeros(1, 3, state['resize'][0], state['resize'][1])
+        dummy_input = torch.zeros(1, 3, state['resize'][0], state['resize'][1]).to('cuda')
         inputs = ['images']
         outputs = ['scores']
         dynamic_axes = {'images': {0: 'batch'}, 'scores': {0: 'batch'}}
         
         onnx_name = os.path.join(folder_name, filename + '.onnx')
+
+        with amp.disable_casts():
         
-        torch.onnx.export(model, dummy_input, onnx_name, verbose=True, \
-                          input_names=inputs, output_names=outputs)
+            torch.onnx.export(model, dummy_input, onnx_name, verbose=True, \
+                              input_names=inputs, output_names=outputs)
 
     
 def main():
