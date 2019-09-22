@@ -249,23 +249,30 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch):
         param_group['lr'] = lr
 
 
-def save_checkpoint(state, is_best, folder_name='log_models'):
-    # checkpoint.pth.tar
-    filename = os.path.join(folder_name, 'img_class_chkpnt.pth.tar')
+def save_checkpoint(state, is_best, model, folder_name='log_models'):
+    # saves checkpints into the log folder
+    # saves the best format one into an onnx file as well - for tensorRT conversion + deployment
+    # maybe move crop size into state?
+    
+    filename = 'img_class_' + str(state['arch']) + '_' + str(state['num_classes']) + 'c'
+    filenamepath = os.path.join(folder_name, filename + '_chkpnt.pth.tar')
 
-    torch.save(state, filename)
+    # I have altered state need to check this func
+    torch.save(state, filenamepath)
+    
     if is_best:
-        shutil.copyfile(filename, 'img_class_model_best.pth.tar')
+        shutil.copyfile(filenamepath, os.path.join(folder_name, filename + '_best.pth.tar'))
         
         # specify inputs and outputs for onnx
-        dummy_input = torch.zeros(1, 3, 224, 224) # need revisit this
+        dummy_input = torch.zeros(1, 3, state['resize'][0], state['resize'][1])
         inputs = ['images']
         outputs = ['scores']
         dynamic_axes = {'images': {0: 'batch'}, 'scores': {0: 'batch'}}
         
-        torch.onnx.export(model, dummy_input, "img_class.onnx", verbose=True, \
+        onnx_name = os.path.join(folder_name, filename + '.onnx')
+        
+        torch.onnx.export(model, dummy_input, onnx_name, verbose=True, \
                           input_names=inputs, output_names=outputs)
-
 
     
 def main():
@@ -380,8 +387,10 @@ def main():
                         'arch': args.arch,
                         'state_dict': model.state_dict(),
                         'val_loss': val_dict['val_loss'],
-                        'optimizer': optimizer.state_dict()},
-                        is_best)
+                        'optimizer': optimizer.state_dict(),
+                        'num_classes': args.num_classes,
+                        'resize': (crop_size, crop_size)}, 
+                        is_best, model)
         
         
 if __name__ == '__main__':
