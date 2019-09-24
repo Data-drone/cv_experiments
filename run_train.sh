@@ -62,8 +62,7 @@
 
 #### Label smoothing
 
-python3 train_classification.py -a resnet18 --opt 'ranger' -nc 10 -e 10  --lr 0.02 -b 256 --fp16 --opt-level 'O1' --label-smoothing 0.1 "../cv_data/cifar10/train" "../cv_data/cifar10/test"
-
+python3 train_classification.py -a attn_resnet18 --opt 'sgd' -nc 10 -e 10  --lr 0.02 -b 4 --fp16 --opt-level 'O2' --label-smoothing 0.5 "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 
 #python3 train_classification.py -a resnet18 --opt 'ranger' -nc 10 -e 10  --lr 0.02 -b 256 --fp16 --opt-level 'O1' --label_smoothing --smoothing 0.1 "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 

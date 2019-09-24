@@ -83,10 +83,21 @@ parser.add_argument('--print-freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
+
 parser.add_argument('--fp16', action='store_true',
                     help='Run model fp16 mode.')
+
+# check where these fit in
+parser.add_argument('--static-loss-scale', type=float, default=1,
+                        help='Static loss scale, positive power of 2 values can improve fp16 convergence.')
+parser.add_argument('--dynamic-loss-scale', action='store_true',
+                        help='Use dynamic loss scaling.  If supplied, this argument supersedes ' +
+                        '--static-loss-scale.')
+    
 parser.add_argument('--opt-level', type=str, default='O0')
 parser.add_argument('--keep-batchnorm-fp32', type=str, default=None)
+
+# check where these fit in
 parser.add_argument('--loss-scale', type=str, default=None)
 
 parser.add_argument('--local_rank', default=0, type=int,
@@ -342,6 +353,8 @@ def main():
     if args.opt == 'ranger':
         optimizer = local_optimisers.Ranger(model.parameters(), args.lr,
                                             weight_decay=args.weight_decay)
+    
+    
     
     if args.fp16:
         model, optimizer = amp.initialize(model, optimizer,
