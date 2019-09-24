@@ -22,6 +22,8 @@ from lr_schedulers.onecyclelr import OneCycleLR
 
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
+from loss.label_smoothing import LabelSmoothing
+
 #TODO
 # look at cyclic lr - added one cycle
 # look at cyclic momentum
@@ -91,11 +93,8 @@ parser.add_argument('--local_rank', default=0, type=int,
         help='Used for multi-process training. Can either be manually set ' +
             'or automatically set by using \'python -m multiproc\'.')
 
-parser.add_argument('--label-smoothing', action='store_true',
-                   help='add in label smoothing')
-parser.add_argument('--smoothing', type=float, default=0.5,
-                   help='add in label smoothing')
-
+parser.add_argument('--label-smoothing', type=float, default=0.0,
+                    help='add in label smoothing')
 
 
 # keep true unless we vary image sizes
@@ -138,23 +137,6 @@ def accuracy(output, target, topk=(1,)):
     return res
 
 
-# smoothing function from https://github.com/pytorch/pytorch/issues/7455
-def smooth_one_hot(true_labels: torch.Tensor, classes: int, smoothing=0.0):
-    """
-    if smoothing == 0, it's one-hot method
-    if 0 < smoothing < 1, it's smooth method
-
-    """
-    assert 0 <= smoothing < 1
-    confidence = 1.0 - smoothing
-    label_shape = torch.Size((true_labels.size(0), classes))
-    with torch.no_grad():
-        true_dist = torch.empty(size=label_shape, device=true_labels.device)
-        true_dist.fill_(smoothing / (classes - 1))
-        true_dist.scatter_(1, true_labels.data.unsqueeze(1), confidence)
-    return true_dist
-
-
 def train(train_loader, model, criterion, optimizer, epoch, scheduler):
 
     model.train()
@@ -171,10 +153,7 @@ def train(train_loader, model, criterion, optimizer, epoch, scheduler):
 
         input_var = Variable(input)
         target_var = Variable(target)
-        
-        if args.label_smoothing:
-            target_var = smooth_one_hot(target_var, args.num_classes, smoothing=args.smoothing).long()
-
+                    
         output = model(input_var)
         loss = criterion(output, target_var)
 
@@ -337,6 +316,10 @@ def main():
     # define loss function (criterion) and optimizer
     #### Edit point for tuning details ####
     criterion = nn.CrossEntropyLoss().cuda()
+    
+    if args.label_smoothing > 0:
+        criterion = LabelSmoothing(args.label_smoothing).cuda()
+
 
     if args.opt == 'sgd':
         optimizer = torch.optim.SGD(model.parameters(), args.lr,
