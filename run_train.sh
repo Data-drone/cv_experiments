@@ -1,5 +1,9 @@
 #!/bin/bash
 
+### imagenet test
+#python3 train_classification.py -a resnet18 --opt 'ranger' -nc 1000 -e 10  --lr 0.02 -b 256 --fp16 --opt-level 'O1' --label-smoothing 0.1 "../external_data/ImageNet/ILSVRC2012_img_train" "../external_data/ImageNet/ILSVRC2012_img_val"
+
+
 #python3 train_classification.py -a tinydarknetv3 -nc 10 -e 300 --lr 0.02 -b 128 --fp16 "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 #python3 train_classification.py -a tinydarknetv3 -nc 100 -e 300 --lr 0.02 -b 128 --fp16 "../cv_data/cifar100/train" "../cv_data/cifar100/test"
 
@@ -17,7 +21,7 @@
 
 #python3 train_classification.py -a se_resnet18 --opt 'ranger' -nc 10 -e 10  --lr 0.02 -b 256 --fp16 --opt-level 'O1' "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 
-#python3 train_classification.py -a attn_resnet18 --opt 'sgd' -nc 100 -e 20  --lr 0.02 -b 4 --fp16 --opt-level 'O2' "../cv_data/cifar100/train" "../cv_data/cifar100/test"
+python3 train_classification.py -a attn_resnet18 --opt 'ranger' -nc 100 -e 20  --lr 0.02 -b 4 --fp16 --opt-level 'O1' "../cv_data/cifar100/train" "../cv_data/cifar100/test"
 
 #python3 train_classification.py -a optresnet18 --opt 'ranger' -nc 10 -e 10  --lr 0.02 -b 256 --fp16 --opt-level 'O1' "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 
@@ -62,7 +66,8 @@
 
 #### Label smoothing
 
-python3 train_classification.py -a attn_resnet18 --opt 'sgd' -nc 10 -e 10  --lr 0.02 -b 4 --fp16 --opt-level 'O2' --label-smoothing 0.5 "../cv_data/cifar10/train" "../cv_data/cifar10/test"
+# need revisit
+#python3 train_classification.py -a attn_resnet18 --opt 'sgd' -nc 10 -e 10  --lr 0.02 -b 4 --fp16 --opt-level 'O2' --label-smoothing 0.5 "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 
 #python3 train_classification.py -a resnet18 --opt 'ranger' -nc 10 -e 10  --lr 0.02 -b 256 --fp16 --opt-level 'O1' --label_smoothing --smoothing 0.1 "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 

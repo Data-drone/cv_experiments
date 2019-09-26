@@ -8,21 +8,25 @@ from torchvision.models.utils import load_state_dict_from_url
 
 
 # need adapt to Torchvision style calls to integrate
-__all__ = ['attn_resnet18']#, 
-           #'attn_resnet34', 
+__all__ = ['attn_resnet18', 
+           'attn_resnet34'] 
            #'attn_resnet50', 
            #'attn_resnet101', 
            #'attn_resnet152']
 
 # expects pth files
 model_urls = {
-    'attn_resnet18': ''#,
-    #'attn_resnet34': '',
+    'attn_resnet18': '',
+    'attn_resnet34': '',
     #'attn_resnet50': '',
     #'attn_resnet101': '',
     #'attn_resnet152': ''
 }
 
+def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
+    """3x3 convolution with padding"""
+    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
+                     padding=dilation, groups=groups, bias=False, dilation=dilation)
 
 def convAtten3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""
@@ -53,7 +57,7 @@ class BasicAttenBlock(nn.Module):
         if dilation > 1:
             raise NotImplementedError("Dilation > 1 not supported in BasicBlock")
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
-        self.conv1 = convAtten3x3(inplanes, planes, stride)
+        self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = norm_layer(planes)
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = convAtten3x3(planes, planes)
@@ -192,4 +196,14 @@ def attn_resnet18(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     return _attn_resnet('attn_resnet18', BasicAttenBlock, [2, 2, 2, 2], pretrained, progress,
-                   **kwargs)
+                        **kwargs)
+
+def attn_resnet34(pretrained=False, progress=True, **kwargs):
+    r"""ResNet-34 model from
+    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return _attn_resnet('attn_resnet34', BasicAttenBlock, [3,4,6,3], pretrained, progress, 
+                        **kwargs)
