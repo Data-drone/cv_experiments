@@ -24,6 +24,8 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from loss.label_smoothing import LabelSmoothing
 
+
+
 #TODO
 # look at cyclic lr - added one cycle
 # look at cyclic momentum
@@ -31,6 +33,10 @@ from loss.label_smoothing import LabelSmoothing
 # https://arxiv.org/abs/1803.09820
 
 # load pipelines
+
+
+DATA_BACKEND_CHOICES = ['dali-cpu', 'dali-gpu']
+
 from data_pipeline.basic_pipeline import HybridTrainPipe, HybridValPipe
 try:
     from nvidia.dali.plugin.pytorch import DALIClassificationIterator
@@ -65,6 +71,8 @@ parser.add_argument('--arch', '-a', metavar='ARCH',
 parser.add_argument('--opt', metavar='OPT', default='sgd',
                     choices=['sgd', 'adam', 'adamw', 'radam', 'ranger'],
                     help='optimiser function')
+parser.add_argument('--data-backend', metavar='BACKEND', default='dali-cpu',
+                    choices=DATA_BACKEND_CHOICES)
 parser.add_argument('--num-classes', '-nc', metavar='N', default=1000, type=int,
                     help='num classes for classification task (default 1000)')
 parser.add_argument('--epochs', '-e', metavar='N', default=10, type=int,
@@ -131,7 +139,7 @@ def to_python_float(t):
     else:
         return t[0]
 
-def accuracy(output, target, topk=(1,)):
+def accuracy(output, target, topk=(1,)) -> list:
     """Computes the precision@k for the specified values of k"""
     # should we be calling this accuracy?
     maxk = max(topk)
@@ -201,7 +209,7 @@ def train(train_loader, model, criterion, optimizer, epoch, scheduler):
         
 
 
-def validate(val_loader, model, criterion, epoch) -> float:
+def validate(val_loader, model, criterion, epoch) -> dict:
     
     model.eval()
     top1 = AverageMeter()
@@ -375,8 +383,13 @@ def main():
         crop_size = 224
         val_size = 256
 
-    pipe = HybridTrainPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
+    if args.data_backend == 'dali-cpu':
+        pipe = HybridTrainPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
+                            data_dir=traindir, crop=crop_size, dali_cpu=True)
+    else:
+        pipe = HybridTrainPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
                             data_dir=traindir, crop=crop_size, dali_cpu=False)
+
     pipe.build()
     train_loader = DALIClassificationIterator(pipe, size=int(pipe.epoch_size("Reader") / args.world_size))
 

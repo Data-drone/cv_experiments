@@ -17,7 +17,7 @@ __all__ = ['attn_resnet18',
 # expects pth files
 model_urls = {
     'attn_resnet18': '',
-    'attn_resnet34': '',
+    'attn_resnet34': ''
     #'attn_resnet50': '',
     #'attn_resnet101': '',
     #'attn_resnet152': ''
