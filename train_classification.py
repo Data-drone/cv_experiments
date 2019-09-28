@@ -273,7 +273,7 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch):
         param_group['lr'] = lr
 
 
-def save_checkpoint(state, is_best, model, folder_name='log_models'):
+def save_checkpoint(state, is_best, fp_16, model, folder_name='log_models', ):
     # saves checkpints into the log folder
     # saves the best format one into an onnx file as well - for tensorRT conversion + deployment
     # maybe move crop size into state?
@@ -295,10 +295,17 @@ def save_checkpoint(state, is_best, model, folder_name='log_models'):
         
         onnx_name = os.path.join(folder_name, filename + '.onnx')
 
-        with amp.disable_casts():
+        if fp_16:
+            with amp.disable_casts():
         
+                torch.onnx.export(model, dummy_input, onnx_name, verbose=True, \
+                                input_names=inputs, output_names=outputs)
+            
+        else:
             torch.onnx.export(model, dummy_input, onnx_name, verbose=True, \
-                              input_names=inputs, output_names=outputs)
+                                input_names=inputs, output_names=outputs)
+            
+
 
     
 def main():
@@ -427,7 +434,7 @@ def main():
                         'optimizer': optimizer.state_dict(),
                         'num_classes': args.num_classes,
                         'resize': (crop_size, crop_size)}, 
-                        is_best, model)
+                        is_best, args.fp16, model)
         
         
 if __name__ == '__main__':
