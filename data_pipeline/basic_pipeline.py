@@ -15,26 +15,31 @@ pipeline_logger = logging.getLogger(__name__ + '.data_pipeline')
 class HybridTrainPipe(Pipeline):
     def __init__(self, batch_size, num_threads, device_id, data_dir, crop, dali_cpu=False, local_shard=0, total_shards=1):
         super(HybridTrainPipe, self).__init__(batch_size, num_threads, device_id, seed=12 + device_id)
-        self.input = ops.FileReader(file_root=data_dir, shard_id=local_shard, num_shards=total_shards, random_shuffle=True)
+        
+        self.input = ops.FileReader(file_root=data_dir, 
+                                    shard_id=local_shard, 
+                                    num_shards=total_shards, 
+                                    random_shuffle=True)
+        
         #let user decide which pipeline works him bets for RN version he runs
         if dali_cpu:
             dali_device = "cpu"
-            self.decode = ops.HostDecoderRandomCrop(device=dali_device, output_type=types.RGB,
+            self.decode = ops.ImageDecoderRandomCrop(device=dali_device, output_type=types.RGB,
                                                     random_aspect_ratio=[0.8, 1.25],
                                                     random_area=[0.1, 1.0],
                                                     num_attempts=100)
-            
         else:
             dali_device = "gpu"
             # This padding sets the size of the internal nvJPEG buffers to be able to handle all images from full-sized ImageNet
             # without additional reallocations `ImageDecoderRandomCrop`
-            self.decode = ops.ImageDecoderRandomCrop(device="mixed", output_type=types.RGB, device_memory_padding=211025920, host_memory_padding=140544512,
-                                                      random_aspect_ratio=[0.8, 1.25],
-                                                      random_area=[0.1, 1.0],
-                                                      num_attempts=100)
+            self.decode = ops.ImageDecoderRandomCrop(device="mixed", output_type=types.RGB, 
+                                                    device_memory_padding=211025920, host_memory_padding=140544512,
+                                                    random_aspect_ratio=[0.8, 1.25],
+                                                    random_area=[0.1, 1.0],
+                                                    num_attempts=100)
 
-        self.res = ops.Resize(device=dali_device, resize_x=crop, resize_y=crop, interp_type=types.INTERP_TRIANGULAR)
-        self.cmnp = ops.CropMirrorNormalize(device="gpu",
+            
+        self.cmnp = ops.CropMirrorNormalize(device=dali_device,
                                             output_dtype=types.FLOAT,
                                             output_layout=types.NCHW,
                                             crop=(crop, crop),
@@ -42,11 +47,12 @@ class HybridTrainPipe(Pipeline):
                                             # from https://github.com/Armour/pytorch-nn-practice/blob/master/utils/meanstd.py
                                             mean=[0.50707516 * 255,0.48654887 * 255,0.44091784 * 255], 
                                             std=[0.26733429 * 255,0.25643846 * 255,0.27615047 * 255]) 
-
+        
+        self.rotate = ops.Rotate(device=dali_device, interp_type=types.INTERP_NN) 
+        self.res = ops.Resize(device=dali_device, resize_x=crop, resize_y=crop, interp_type=types.INTERP_TRIANGULAR)
         self.coin = ops.CoinFlip(probability=0.5)
 
         # add a rotate
-        self.rotate = ops.Rotate(device='gpu', interp_type=types.INTERP_NN) 
         self.rotate_range = ops.Uniform(range = (-7, 7)) # 7 degrees either way
         self.rotate_coin = ops.CoinFlip(probability=0.075) # 7.5% chance
 
