@@ -13,7 +13,9 @@ pipeline_logger = logging.getLogger(__name__ + '.data_pipeline')
 # Basic DALI accelerated pipeline
 # Does a random rotate and crop
 class HybridTrainPipe(Pipeline):
-    def __init__(self, batch_size, num_threads, device_id, data_dir, crop, dali_cpu=False, local_shard=0, total_shards=1):
+    def __init__(self, batch_size, num_threads, device_id, data_dir, crop, dali_cpu=False, 
+                local_shard=0, total_shards=1):
+        
         super(HybridTrainPipe, self).__init__(batch_size, num_threads, device_id, seed=12 + device_id)
         
         self.input = ops.FileReader(file_root=data_dir, 
@@ -38,8 +40,10 @@ class HybridTrainPipe(Pipeline):
                                                     random_area=[0.1, 1.0],
                                                     num_attempts=100)
 
-            
-        self.cmnp = ops.CropMirrorNormalize(device=dali_device,
+
+        self.res = ops.Resize(device=dali_device, resize_x=crop, resize_y=crop, interp_type=types.INTERP_TRIANGULAR)    
+        
+        self.cmnp = ops.CropMirrorNormalize(device="gpu",
                                             output_dtype=types.FLOAT,
                                             output_layout=types.NCHW,
                                             crop=(crop, crop),
@@ -48,13 +52,13 @@ class HybridTrainPipe(Pipeline):
                                             mean=[0.50707516 * 255,0.48654887 * 255,0.44091784 * 255], 
                                             std=[0.26733429 * 255,0.25643846 * 255,0.27615047 * 255]) 
         
-        self.rotate = ops.Rotate(device=dali_device, interp_type=types.INTERP_NN) 
-        self.res = ops.Resize(device=dali_device, resize_x=crop, resize_y=crop, interp_type=types.INTERP_TRIANGULAR)
+        #self.rotate = ops.Rotate(device="gpu", interp_type=types.INTERP_NN) 
+        
         self.coin = ops.CoinFlip(probability=0.5)
 
         # add a rotate
-        self.rotate_range = ops.Uniform(range = (-7, 7)) # 7 degrees either way
-        self.rotate_coin = ops.CoinFlip(probability=0.075) # 7.5% chance
+        #self.rotate_range = ops.Uniform(range = (-7, 7)) # 7 degrees either way
+        #self.rotate_coin = ops.CoinFlip(probability=0.075) # 7.5% chance
 
         pipeline_logger.info('DALI "{0}" variant'.format(dali_device))
 
@@ -62,12 +66,12 @@ class HybridTrainPipe(Pipeline):
         # for mirror
         rng = self.coin()
         # for rotate
-        angle_range = self.rotate_range()
-        prob_rotate = self.rotate_coin()
+        #angle_range = self.rotate_range()
+        #prob_rotate = self.rotate_coin()
         
         self.jpegs, self.labels = self.input(name="Reader") # load in files
         images = self.decode(self.jpegs) # decode
-        images = self.rotate(images, angle=angle_range, mask=prob_rotate) # rotate
+        #images = self.rotate(images, angle=angle_range, mask=prob_rotate) # rotate
         images = self.res(images) # resize
         output = self.cmnp(images.gpu(), mirror=rng) # crop / mirror / normalise (crop is random 50%)
         return [output, self.labels]
@@ -75,7 +79,12 @@ class HybridTrainPipe(Pipeline):
 class HybridValPipe(Pipeline):
     def __init__(self, batch_size, num_threads, device_id, data_dir, crop, size, local_shard=0, total_shards=1):
         super(HybridValPipe, self).__init__(batch_size, num_threads, device_id, seed=12 + device_id)
-        self.input = ops.FileReader(file_root=data_dir, shard_id=local_shard, num_shards=total_shards, random_shuffle=False)
+        
+        self.input = ops.FileReader(file_root=data_dir, 
+                                    shard_id=local_shard, 
+                                    num_shards=total_shards, 
+                                    random_shuffle=False)
+        
         self.decode = ops.ImageDecoder(device="mixed", output_type=types.RGB)
         self.res = ops.Resize(device="gpu", resize_shorter=size, interp_type=types.INTERP_TRIANGULAR)
         self.cmnp = ops.CropMirrorNormalize(device="gpu",

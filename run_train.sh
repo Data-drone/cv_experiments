@@ -21,7 +21,7 @@
 
 #python3 train_classification.py -a se_resnet18 --opt 'ranger' -nc 10 -e 10  --lr 0.02 -b 256 --fp16 --opt-level 'O1' "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 
-python3 train_classification.py -a attn_resnet18 --opt 'ranger' -nc 100 -e 20  --lr 0.02 -b 4 --fp16 --opt-level 'O1' "../cv_data/cifar100/train" "../cv_data/cifar100/test"
+python3 train_classification.py -a resnet18 --data-backend 'dali-cpu' --opt 'ranger' -nc 10 -e 10  --lr 0.02 -b 256 "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 
 #python3 train_classification.py -a optresnet18 --opt 'ranger' -nc 10 -e 10  --lr 0.02 -b 256 --fp16 --opt-level 'O1' "../cv_data/cifar10/train" "../cv_data/cifar10/test"
 
