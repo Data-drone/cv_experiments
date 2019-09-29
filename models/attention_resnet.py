@@ -1,6 +1,8 @@
 ## resnet with attention
 # resnet adjusted with AugmentedConv
 
+# original paper done with wide resnets - need to adjust to suit
+
 from .attention_conv import AugmentedConv
 import torch
 import torch.nn as nn
@@ -32,8 +34,10 @@ def convAtten3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""
     #return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
     #                 padding=dilation, groups=groups, bias=False, dilation=dilation)
+    k=2
+    v=0.2
 
-    return AugmentedConv(in_planes, out_planes, kernel_size=3, dk=40, dv=4, Nh=4, stride=stride)
+    return AugmentedConv(in_planes, out_planes, kernel_size=3, dk=k*out_planes, dv=v*out_planes, Nh=4, stride=stride)
 
 
 def conv1x1(in_planes, out_planes, stride=1):
@@ -60,6 +64,7 @@ class BasicAttenBlock(nn.Module):
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = norm_layer(planes)
         self.relu = nn.ReLU(inplace=True)
+
         self.conv2 = convAtten3x3(planes, planes)
         self.bn2 = norm_layer(planes)
         self.downsample = downsample
@@ -134,7 +139,7 @@ class ResNet(nn.Module):
             for m in self.modules():
                 if isinstance(m, Bottleneck):
                     nn.init.constant_(m.bn3.weight, 0)
-                elif isinstance(m, BasicBlock):
+                elif isinstance(m, BasicAttenBlock):
                     nn.init.constant_(m.bn2.weight, 0)
 
     def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
