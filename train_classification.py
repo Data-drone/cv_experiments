@@ -273,7 +273,7 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch):
         param_group['lr'] = lr
 
 
-def save_checkpoint(state, is_best, fp_16, model, folder_name='log_models0', onnx=False):
+def save_checkpoint(state, is_best, fp_16, model, folder_name='log_models', onnx=False):
     # saves checkpints into the log folder
     # saves the best format one into an onnx file as well - for tensorRT conversion + deployment
     # maybe move crop size into state?
