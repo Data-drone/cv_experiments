@@ -191,6 +191,7 @@ def _attn_resnet(arch, block, layers, pretrained, progress, **kwargs):
 def attn_resnet18(pretrained=False, progress=True, **kwargs):
     r"""ResNet-18 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
+    with edits to add attention
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
@@ -201,6 +202,7 @@ def attn_resnet18(pretrained=False, progress=True, **kwargs):
 def attn_resnet34(pretrained=False, progress=True, **kwargs):
     r"""ResNet-34 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
+    with edits to add attention
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr

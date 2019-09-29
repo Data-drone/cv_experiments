@@ -77,7 +77,8 @@ class HybridTrainPipe(Pipeline):
         return [output, self.labels]
 
 class HybridValPipe(Pipeline):
-    def __init__(self, batch_size, num_threads, device_id, data_dir, crop, size, local_shard=0, total_shards=1):
+    def __init__(self, batch_size, num_threads, device_id, data_dir, crop, 
+                    size, local_shard=0, total_shards=1):
         super(HybridValPipe, self).__init__(batch_size, num_threads, device_id, seed=12 + device_id)
         
         self.input = ops.FileReader(file_root=data_dir, 

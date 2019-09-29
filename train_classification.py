@@ -273,7 +273,7 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch):
         param_group['lr'] = lr
 
 
-def save_checkpoint(state, is_best, fp_16, model, folder_name='log_models', ):
+def save_checkpoint(state, is_best, fp_16, model, folder_name='log_models0', onnx=False):
     # saves checkpints into the log folder
     # saves the best format one into an onnx file as well - for tensorRT conversion + deployment
     # maybe move crop size into state?
@@ -287,24 +287,25 @@ def save_checkpoint(state, is_best, fp_16, model, folder_name='log_models', ):
     if is_best:
         shutil.copyfile(filenamepath, os.path.join(folder_name, filename + '_best.pth.tar'))
         
-        # specify inputs and outputs for onnx
-        dummy_input = torch.zeros(1, 3, state['resize'][0], state['resize'][1]).to('cuda')
-        inputs = ['images']
-        outputs = ['scores']
-        dynamic_axes = {'images': {0: 'batch'}, 'scores': {0: 'batch'}}
-        
-        onnx_name = os.path.join(folder_name, filename + '.onnx')
+        if onnx:
+            # specify inputs and outputs for onnx
+            dummy_input = torch.zeros(1, 3, state['resize'][0], state['resize'][1]).to('cuda')
+            inputs = ['images']
+            outputs = ['scores']
+            dynamic_axes = {'images': {0: 'batch'}, 'scores': {0: 'batch'}}
+            
+            onnx_name = os.path.join(folder_name, filename + '.onnx')
 
-        if fp_16:
-            with amp.disable_casts():
-        
+            if fp_16:
+                with amp.disable_casts():
+            
+                    torch.onnx.export(model, dummy_input, onnx_name, verbose=True, \
+                                    input_names=inputs, output_names=outputs)
+                
+            else:
                 torch.onnx.export(model, dummy_input, onnx_name, verbose=True, \
-                                input_names=inputs, output_names=outputs)
-            
-        else:
-            torch.onnx.export(model, dummy_input, onnx_name, verbose=True, \
-                                input_names=inputs, output_names=outputs)
-            
+                                    input_names=inputs, output_names=outputs)
+                
 
 
     
@@ -391,19 +392,19 @@ def main():
         val_size = 256
 
     if args.data_backend == 'dali-cpu':
-        pipe = HybridTrainPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
+        tpipe = HybridTrainPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
                             data_dir=traindir, crop=crop_size, dali_cpu=True)
     else:
-        pipe = HybridTrainPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
+        tpipe = HybridTrainPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
                             data_dir=traindir, crop=crop_size, dali_cpu=False)
 
-    pipe.build()
-    train_loader = DALIClassificationIterator(pipe, size=int(pipe.epoch_size("Reader") / args.world_size))
+    tpipe.build()
+    train_loader = DALIClassificationIterator(tpipe, size=int(tpipe.epoch_size("Reader") / args.world_size))
 
-    pipe = HybridValPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
+    vpipe = HybridValPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
                             data_dir=valdir, crop=crop_size, size=val_size)
-    pipe.build()
-    val_loader = DALIClassificationIterator(pipe, size=int(pipe.epoch_size("Reader") / args.world_size))
+    vpipe.build()
+    val_loader = DALIClassificationIterator(vpipe, size=int(vpipe.epoch_size("Reader") / args.world_size))
     
     
     train_loader_len = int(train_loader._size / args.batch_size)*args.epochs
