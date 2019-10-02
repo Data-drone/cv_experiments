@@ -5,10 +5,12 @@ from torchvision.models.utils import load_state_dict_from_url
 # wide resnet from scratch
 # https://arxiv.org/pdf/1605.07146.pdf?
 
-__all__ = ['wide_resnet18']
+__all__ = ['wide_resnet18',
+            'wide_resnet34']
 
 model_url = {
-    'wide_resnet18': ''
+    'wide_resnet18': '',
+    'wide_resnet34': ''
 }
 
 class BasicBlock(nn.Module):
@@ -51,7 +53,7 @@ class WResNet(nn.Module):
         super(WResNet, self).__init__()
         
         self.bn1 = nn.BatchNorm2d(3) # norm variable in torchvision
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
+        self.conv1 = nn.Conv2d(3, 16*k, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -136,3 +138,13 @@ def wide_resnet18(pretrained=False, progress=True, **kwargs):
 
     return _wide_resnet('wide_resnet18', BasicBlock, [2,2,2,2],
                         pretrained, progress, **kwargs)
+
+def wide_resnet34(pretrained=False, progress=True, **kwargs):
+    r"""ResNet-34 model from
+    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return _resnet('wide_resnet34', BasicBlock, [3, 4, 6, 3], pretrained, progress,
+                   **kwargs)
