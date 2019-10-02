@@ -146,5 +146,5 @@ def wide_resnet34(pretrained=False, progress=True, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return _resnet('wide_resnet34', BasicBlock, [3, 4, 6, 3], pretrained, progress,
+    return _wide_resnet('wide_resnet34', BasicBlock, [3, 4, 6, 3], pretrained, progress,
                    **kwargs)
