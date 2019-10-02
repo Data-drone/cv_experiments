@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torchvision.models.utils import load_state_dict_from_url
 
 # wide resnet from scratch
 # https://arxiv.org/pdf/1605.07146.pdf?
@@ -44,11 +45,10 @@ class BasicBlock(nn.Module):
         return out
 
 
-
 class WResNet(nn.Module):
 
     def __init__(self, block, layers=[2,2,2,2], k=4, num_classes=1000):
-        super(TestModule, self).__init__()
+        super(WResNet, self).__init__()
         
         self.bn1 = nn.BatchNorm2d(3) # norm variable in torchvision
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
@@ -117,9 +117,9 @@ class WResNet(nn.Module):
 
 
 def _wide_resnet(arch, block, layers, pretrained, progress, **kwargs):
-    model = WResNet(block, layers, **kwargs):
+    model = WResNet(block, layers, **kwargs)
     if pretrained:
-        state_dict = load_state_dict_from_url(model_urls[arch],
+        state_dict = load_state_dict_from_url(model_url[arch],
                                               progress=progress)
         model.load_state_dict(state_dict)
     return model
