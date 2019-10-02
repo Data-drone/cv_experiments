@@ -376,7 +376,7 @@ def main():
         model, optimizer = amp.initialize(model, optimizer,
                                       opt_level=args.opt_level,
                                       keep_batchnorm_fp32=args.keep_batchnorm_fp32,
-                                      loss_scale=args.loss_scale
+                                      loss_scale="dynamic" #args.loss_scale
                                       )
     
     traindir = args.data[0]
