@@ -26,6 +26,8 @@ class BasicBlock(nn.Module):
         self.conv2 = nn.Conv2d(in_channels=filters, out_channels=filters, kernel_size=3, stride=1,
                      padding=1, groups=1, bias=False, dilation=1)
         self.downsample = downsample
+
+        self.dropout = nn.Dropout(p=0.2)
         
     def forward(self,x):
         identity = x
@@ -33,10 +35,12 @@ class BasicBlock(nn.Module):
         out = self.bn1(x)
         out = self.relu(out)
         out = self.conv1(out)
+
+        out = self.dropout(out)
         
-        out = self.bn1(x)
+        out = self.bn2(out)
         out = self.relu(out)
-        out = self.conv1(out)
+        out = self.conv2(out)
         
         if self.downsample is not None:
             identity = self.downsample(x)
@@ -53,14 +57,14 @@ class WResNet(nn.Module):
         super(WResNet, self).__init__()
         
         self.bn1 = nn.BatchNorm2d(3) # norm variable in torchvision
-        self.conv1 = nn.Conv2d(3, 16*k, kernel_size=7, stride=2, padding=3,
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         
         #### first part
         
-        self.group1 = self._make_layer(block, 16*k, 16*k, layers[0])
+        self.group1 = self._make_layer(block, 16, 16*k, layers[0])
         self.group2 = self._make_layer(block, 16*k, 32*k, layers[1])
         
         #### second part
@@ -140,8 +144,10 @@ def wide_resnet18(pretrained=False, progress=True, **kwargs):
                         pretrained, progress, **kwargs)
 
 def wide_resnet34(pretrained=False, progress=True, **kwargs):
-    r"""ResNet-34 model from
-    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
+    r"""Wide ResNet-34 model from
+    `"Wide Residual Networks" <https://arxiv.org/pdf/1605.07146.pdf>'
+     This model is based on resnet with the extra width parameters used in the paper
+     is uses a Basic B(3,3) block.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
