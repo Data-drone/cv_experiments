@@ -6,10 +6,12 @@ from torchvision.models.utils import load_state_dict_from_url
 # https://arxiv.org/pdf/1605.07146.pdf?
 
 __all__ = ['wide_resnet18',
+            'wide_resnet22',
             'wide_resnet34']
 
 model_url = {
     'wide_resnet18': '',
+    'wide_resnet22': '',
     'wide_resnet34': ''
 }
 
@@ -49,6 +51,54 @@ class BasicBlock(nn.Module):
         out += identity
         
         return out
+
+
+class Bottleneck(nn.Module):
+
+    def __init__(self, insize, filters, downsample=None):
+        super(Bottleneck, self).__init__()
+
+        self.bn1 = nn.BatchNorm2d(insize)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv1 = nn.Conv2d(in_channels=insize, out_channels=filters, kernel_size=3, stride=1,
+                     padding=1, groups=1, bias=False, dilation=1)
+        self.bn2 = nn.BatchNorm2d(filters)
+        self.conv2 = nn.Conv2d(in_channels=filters, out_channels=filters, kernel_size=1, stride=1,
+                     padding=1, groups=1, bias=False, dilation=0)
+
+        self.bn3 = nn.BatchNorm2d(filters)
+        self.conv3 = nn.Conv2d(in_channels=filters, out_channels=filters, kernel_size=3, stride=1,
+                     padding=1, groups=1, bias=False, dilation=1)
+        
+        self.downsample = downsample
+
+        self.dropout = nn.Dropout(p=0.2)
+
+    def forward(self,x):
+        identity = x
+        
+        out = self.bn1(x)
+        out = self.relu(out)
+        out = self.conv1(out)
+
+        out = self.dropout(out)
+        
+        out = self.bn2(out)
+        out = self.relu(out)
+        out = self.conv2(out)
+
+        out = self.bn3(out)
+        out = self.relu(out)
+        out = self.conv3(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+        
+        # when we change size we need to downsample I guess?
+        out += identity
+        
+        return out
+
 
 
 class WResNet(nn.Module):
@@ -142,6 +192,19 @@ def wide_resnet18(pretrained=False, progress=True, **kwargs):
 
     return _wide_resnet('wide_resnet18', BasicBlock, [2,2,2,2],
                         pretrained, progress, **kwargs)
+
+def wide_resnet22(pretrained=False, progress=True, **kwargs):
+    r"""
+     '"Wide Residual Networks" <https://arxiv.org/pdf/1605.07146.pdf>'
+     This model is based on resnet with the extra width parameters used in the paper
+     is uses a Basic B(3,3) block.
+     Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+
+    return _wide_resnet('wide_resnet22', Bottleneck, [2,2,2,2],
+                        pretrained, progress, **kwargs)                     
 
 def wide_resnet34(pretrained=False, progress=True, **kwargs):
     r"""Wide ResNet-34 model from
