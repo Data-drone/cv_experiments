@@ -64,7 +64,7 @@ class Bottleneck(nn.Module):
                      padding=1, groups=1, bias=False, dilation=1)
         self.bn2 = nn.BatchNorm2d(filters)
         self.conv2 = nn.Conv2d(in_channels=filters, out_channels=filters, kernel_size=1, stride=1,
-                     padding=1, groups=1, bias=False, dilation=0)
+                     padding=0, groups=1, bias=False, dilation=1)
 
         self.bn3 = nn.BatchNorm2d(filters)
         self.conv3 = nn.Conv2d(in_channels=filters, out_channels=filters, kernel_size=3, stride=1,
@@ -95,7 +95,7 @@ class Bottleneck(nn.Module):
             identity = self.downsample(x)
         
         # when we change size we need to downsample I guess?
-        out += identity
+        #out += identity
         
         return out
 
