@@ -34,6 +34,7 @@ from loss.label_smoothing import LabelSmoothing
 
 # load pipelines
 
+######
 
 DATA_BACKEND_CHOICES = ['dali-cpu', 'dali-gpu']
 
@@ -91,29 +92,21 @@ parser.add_argument('--print-freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
+parser.add_argument('--label-smoothing', type=float, default=0.0,
+                    help='add in label smoothing')
 
+### fp 16 arguments
 parser.add_argument('--fp16', action='store_true',
                     help='Run model fp16 mode.')
-
-# check where these fit in
 parser.add_argument('--static-loss-scale', type=float, default=1,
                         help='Static loss scale, positive power of 2 values can improve fp16 convergence.')
 parser.add_argument('--dynamic-loss-scale', action='store_true',
                         help='Use dynamic loss scaling.  If supplied, this argument supersedes ' +
                         '--static-loss-scale.')
-    
-parser.add_argument('--opt-level', type=str, default='O0')
-parser.add_argument('--keep-batchnorm-fp32', type=str, default=None)
-
-# check where these fit in
-parser.add_argument('--loss-scale', type=str, default=None)
-
 parser.add_argument('--local_rank', default=0, type=int,
         help='Used for multi-process training. Can either be manually set ' +
-            'or automatically set by using \'python -m multiproc\'.')
-
-parser.add_argument('--label-smoothing', type=float, default=0.0,
-                    help='add in label smoothing')
+            'or automatically set by using \'python -m multiproc\'.')    
+parser.add_argument('--opt-level', type=str, default='O0')
 
 
 # keep true unless we vary image sizes
@@ -125,12 +118,17 @@ wandb.config.update(args)
 # make apex optional - we aren't using distributed
 if args.fp16: #or args.distributed:
     try:
-        #from apex.parallel import DistributedDataParallel as DDP
+        from apex.parallel import DistributedDataParallel as DDP
         from apex.fp16_utils import *
         from apex import amp, optimizers
     except ImportError:
         raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this script.")
 
+args.distributed = False
+if 'WORLD_SIZE' in os.environ:
+    args.distributed = int(os.environ['WORLD_SIZE']) > 1
+
+#######
 
 # item() is a recent addition, so this helps with backward compatibility.
 def to_python_float(t):
@@ -138,6 +136,13 @@ def to_python_float(t):
         return t.item()
     else:
         return t[0]
+
+# tensor reduce to gather from different gpus
+def reduce_tensor(tensor):
+    rt = tensor.clone()
+    dist.all_reduce(rt, op=dist.reduce_op.SUM)
+    rt /= args.world_size
+    return rt
 
 def accuracy(output, target, topk=(1,)) -> list:
     """Computes the precision@k for the specified values of k"""
@@ -176,7 +181,12 @@ def train(train_loader, model, criterion, optimizer, epoch, scheduler):
         output = model(input_var)
         loss = criterion(output, target_var)
 
-        reduced_loss = loss.data
+        if args.distributed:
+            reduced_loss = reduce_tensor(loss.data)
+            prec1 = reduce_tensor(prec1)
+            prec5 = reduce_tensor(prec5)
+        else:
+            reduced_loss = loss.data
 
         prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
 
@@ -233,7 +243,12 @@ def validate(val_loader, model, criterion, epoch) -> dict:
         # precision
         prec1, prec5 = accuracy(output.data, target, topk=(1,5))
 
-        reduced_loss = loss.data
+        if args.distributed:
+            reduced_loss = reduce_tensor(loss.data)
+            prec1 = reduce_tensor(prec1)
+            prec5 = reduce_tensor(prec5)
+        else:
+            reduced_loss = loss.data
 
         # hold metrics
         top1.update( to_python_float(prec1), input.size(0) )
@@ -316,11 +331,27 @@ def main():
     """
 
     # distributed training variable
+    args.gpu = 0
     args.world_size = 1
     
     if args.fp16:
         assert torch.backends.cudnn.enabled, "fp16 mode requires cudnn backend to be enabled."
-        
+
+    ### distributed deep learn parameters
+    if args.distributed:
+        args.gpu = args.local_rank % torch.cuda.device_count()
+        torch.cuda.set_device(args.gpu)
+        torch.distributed.init_process_group(backend='nccl',
+                                             init_method='env://')
+        args.world_size = torch.distributed.get_world_size()
+
+    args.total_batch_size = args.world_size * args.batch_size
+
+    if args.static_loss_scale != 1.0:
+        if not args.fp16:
+            print("Warning:  if --fp16 is not used, static_loss_scale will be ignored.")
+
+
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
         if args.arch in model_names:
@@ -339,6 +370,10 @@ def main():
         model.aux_logits=False
 
     model = model.cuda()
+    if args.distributed:
+        # shared param/delay all reduce turns off bucketing in DDP, for lower latency runs this can improve perf
+        # for the older version of APEX please use shared_param, for newer one it is delay_allreduce
+        model = DDP(model, delay_allreduce=True)
 
     # define loss function (criterion) and optimizer
     #### Edit point for tuning details ####
@@ -371,12 +406,10 @@ def main():
                                             weight_decay=args.weight_decay)
     
     
-    
     if args.fp16:
         model, optimizer = amp.initialize(model, optimizer,
                                       opt_level=args.opt_level,
-                                      #keep_batchnorm_fp32=args.keep_batchnorm_fp32,
-                                      loss_scale="dynamic" #args.loss_scale
+                                      loss_scale="dynamic" if args.dynamic_loss_scale else args.static_loss_scale
                                       )
     
     traindir = args.data[0]
@@ -420,9 +453,6 @@ def main():
         train(train_loader, model, criterion, optimizer, epoch, scheduler)
         val_dict = validate(val_loader, model, criterion, epoch)
 
-        # for each epoch need to reset
-        train_loader.reset()
-        val_loader.reset()
         prec1 = val_dict['val_top1']
         
         is_best = prec1 > best_top1
@@ -436,6 +466,11 @@ def main():
                         'num_classes': args.num_classes,
                         'resize': (crop_size, crop_size)}, 
                         is_best, args.fp16, model)
+
+        # for each epoch need to reset
+        train_loader.reset()
+        val_loader.reset()
+        
         
         
 if __name__ == '__main__':
