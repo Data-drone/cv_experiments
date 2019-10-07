@@ -424,6 +424,16 @@ def main():
         crop_size = 224
         val_size = 256
 
+    # instantiate the dali pipes
+    if torch.distributed.is_initialized():
+        local_rank = torch.distributed.get_rank()
+        world_size = torch.distributed.get_world_size()
+    else:
+        local_rank = 0
+        world_size = 1
+
+    print('local rank: {0}'.format(local_rank))
+
     if args.data_backend == 'dali-cpu':
         tpipe = HybridTrainPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
                             data_dir=traindir, crop=crop_size, dali_cpu=True)
@@ -432,14 +442,14 @@ def main():
                             data_dir=traindir, crop=crop_size, dali_cpu=False)
 
     tpipe.build()
-    train_loader = DALIClassificationIterator(tpipe, size=int(tpipe.epoch_size("Reader") / args.world_size))
+    train_loader = DALIClassificationIterator(tpipe, size=int(tpipe.epoch_size("Reader") / world_size))
 
     vpipe = HybridValPipe(batch_size=args.batch_size, num_threads=args.workers, device_id=args.local_rank, 
                             data_dir=valdir, crop=crop_size, size=val_size)
     vpipe.build()
-    val_loader = DALIClassificationIterator(vpipe, size=int(vpipe.epoch_size("Reader") / args.world_size))
+    val_loader = DALIClassificationIterator(vpipe, size=int(vpipe.epoch_size("Reader") / world_size))
     
-    
+    # may need to revisit
     train_loader_len = int(train_loader._size / args.batch_size)*args.epochs
     scheduler = OneCycleLR(optimizer, num_steps=train_loader_len, lr_range=(args.lr/10, args.lr))
 

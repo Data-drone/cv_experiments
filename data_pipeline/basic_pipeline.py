@@ -1,3 +1,5 @@
+import torch
+
 try:
     from nvidia.dali.plugin.pytorch import DALIClassificationIterator
     from nvidia.dali.pipeline import Pipeline
@@ -13,14 +15,21 @@ pipeline_logger = logging.getLogger(__name__ + '.data_pipeline')
 # Basic DALI accelerated pipeline
 # Does a random rotate and crop
 class HybridTrainPipe(Pipeline):
-    def __init__(self, batch_size, num_threads, device_id, data_dir, crop, dali_cpu=False, 
-                local_shard=0, total_shards=1):
+    def __init__(self, batch_size, num_threads, device_id, data_dir, crop, dali_cpu=False):
         
         super(HybridTrainPipe, self).__init__(batch_size, num_threads, device_id, seed=12 + device_id)
-        
+        # adding distributed sharding
+        if torch.distributed.is_initialized():
+            local_rank = torch.distributed.get_rank()
+            world_size = torch.distributed.get_world_size()
+        else:
+            local_rank = 0
+            world_size = 1
+
+
         self.input = ops.FileReader(file_root=data_dir, 
-                                    shard_id=local_shard, 
-                                    num_shards=total_shards, 
+                                    shard_id=local_rank, 
+                                    num_shards=world_size, 
                                     random_shuffle=True)
         
         #let user decide which pipeline works him bets for RN version he runs
@@ -78,12 +87,18 @@ class HybridTrainPipe(Pipeline):
 
 class HybridValPipe(Pipeline):
     def __init__(self, batch_size, num_threads, device_id, data_dir, crop, 
-                    size, local_shard=0, total_shards=1):
-        super(HybridValPipe, self).__init__(batch_size, num_threads, device_id, seed=12 + device_id)
+                    size):
+        super(HybridValPipe, self).__init__(batch_size, num_threads, device_id, seed=12+device_id)
+        if torch.distributed.is_initialized():
+            local_rank = torch.distributed.get_rank()
+            world_size = torch.distributed.get_world_size()
+        else:
+            local_rank = 0
+            world_size = 1
         
         self.input = ops.FileReader(file_root=data_dir, 
-                                    shard_id=local_shard, 
-                                    num_shards=total_shards, 
+                                    shard_id=local_rank, 
+                                    num_shards=world_size, 
                                     random_shuffle=False)
         
         self.decode = ops.ImageDecoder(device="mixed", output_type=types.RGB)
