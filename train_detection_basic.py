@@ -1,5 +1,6 @@
 # A train script using just pytroch and torchvision
 # test to get training loop right
+# main detection script for now
 
 ### TODO
 # add checkpoint saving
@@ -26,7 +27,7 @@ wandb.init(project="object_detection")
 
 ### fp16 to save space
 try:
-    #from apex.parallel import DistributedDataParallel as DDP
+    from apex.parallel import DistributedDataParallel as DDP
     from apex.fp16_utils import *
     from apex import amp, optimizers
     from apex.multi_tensor_apply import multi_tensor_applier
@@ -34,6 +35,9 @@ except ImportError:
     raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this script.")
 assert torch.backends.cudnn.enabled, "fp16 mode requires cudnn backend to be enabled."
 
+args.distributed = False
+if 'WORLD_SIZE' in os.environ:
+    args.distributed = int(os.environ['WORLD_SIZE']) > 1
 
 # this was in the reference code base but need to unpack why?
 # the data has to be converted back to list for the detector later anyway?
@@ -134,6 +138,28 @@ def train(model, optimizer, data_loader, test_loader, device, fp16):
 
 def main(args):
 
+        # distributed training variable
+    args.gpu = 0
+    args.world_size = 1
+    
+    if args.fp16:
+        assert torch.backends.cudnn.enabled, "fp16 mode requires cudnn backend to be enabled."
+
+    ### distributed deep learn parameters
+    if args.distributed:
+        args.gpu = args.local_rank % torch.cuda.device_count()
+        torch.cuda.set_device(args.gpu)
+        torch.distributed.init_process_group(backend='nccl',
+                                             init_method='env://')
+        args.world_size = torch.distributed.get_world_size()
+
+    args.total_batch_size = args.world_size * args.batch_size
+
+    if args.static_loss_scale != 1.0:
+        if not args.fp16:
+            print("Warning:  if --fp16 is not used, static_loss_scale will be ignored.")
+
+
     device = torch.device(args.device)
     log_interval = 20
 
@@ -175,6 +201,8 @@ def main(args):
 
     model.to(device)
 
+    
+
     ## declare optimiser
     params = [p for p in model.parameters() if p.requires_grad]
 
@@ -185,8 +213,11 @@ def main(args):
         model, optimizer = amp.initialize(model, optimizer,
                                       opt_level=args.opt_level,
                                       keep_batchnorm_fp32=args.keep_batchnorm_fp32,
-                                      loss_scale=args.loss_scale
+                                      loss_scale="dynamic" if args.dynamic_loss_scale else args.static_loss_scale
                                       )
+
+    if args.distributed:
+        model = DDP(model)
 
     model.roi_heads.box_roi_pool.forward = \
     amp.half_function(model.roi_heads.box_roi_pool.forward)

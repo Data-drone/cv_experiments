@@ -68,6 +68,7 @@ parser.add_argument('--print-freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                     help='use pre-trained model')
+
 parser.add_argument('--fp16', action='store_true',
                     help='Run model fp16 mode.')
 parser.add_argument('--static-loss-scale', type=float, default=1,
@@ -78,6 +79,7 @@ parser.add_argument('--dynamic-loss-scale', action='store_true',
 parser.add_argument('--local_rank', default=0, type=int,
         help='Used for multi-process training. Can either be manually set ' +
             'or automatically set by using \'python -m multiproc\'.')
+parser.add_argument('--opt-level', type=str, default='O0')
 
 # keep true unless we vary image sizes
 cudnn.benchmark = True
@@ -88,11 +90,14 @@ args = parser.parse_args()
 # make apex optional - we aren't using distributed
 if args.fp16: #or args.distributed:
     try:
-        #from apex.parallel import DistributedDataParallel as DDP
+        from apex.parallel import DistributedDataParallel as DDP
         from apex.fp16_utils import *
     except ImportError:
         raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this script.")
 
+args.distributed = False
+if 'WORLD_SIZE' in os.environ:
+    args.distributed = int(os.environ['WORLD_SIZE']) > 1
 
 # item() is a recent addition, so this helps with backward compatibility.
 def to_python_float(t):
