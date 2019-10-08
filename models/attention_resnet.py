@@ -11,18 +11,22 @@ from torchvision.models.utils import load_state_dict_from_url
 
 # need adapt to Torchvision style calls to integrate
 __all__ = ['attn_resnet18', 
-           'attn_resnet34'] 
-           #'attn_resnet50', 
+           'attn_resnet34',
+           'attn_resnet50', 
            #'attn_resnet101', 
-           #'attn_resnet152']
-
+           #'attn_resnet152',
+           'attn_wide_resnet28_10',
+           'attn_wide_resnet34_2'] 
+           
 # expects pth files
 model_urls = {
     'attn_resnet18': '',
-    'attn_resnet34': ''
-    #'attn_resnet50': '',
+    'attn_resnet34': '',
+    'attn_resnet50': '',
     #'attn_resnet101': '',
     #'attn_resnet152': ''
+    'attn_wide_resnet28_10': '',
+    'attn_wide_resnet34_2': ''
 }
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
@@ -30,43 +34,36 @@ def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=dilation, groups=groups, bias=False, dilation=dilation)
 
-def convAtten3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
+def convAtten3x3(in_planes, out_planes, stride=1, groups=1, dilation=1, k=2, v=0.2):
     """3x3 convolution with padding"""
-    #return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-    #                 padding=dilation, groups=groups, bias=False, dilation=dilation)
-    k=2
-    v=0.2
-
     return AugmentedConv(in_planes, out_planes, kernel_size=3, dk=k*out_planes, dv=v*out_planes, Nh=4, stride=stride)
-
 
 def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
 
-
-
-class BasicAttenBlock(nn.Module):
+class AttnBasicBlock(nn.Module):
     expansion = 1
     __constants__ = ['downsample']
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
                  base_width=64, dilation=1, norm_layer=None):
-        super(BasicAttenBlock, self).__init__()
+        super(AttnBasicBlock, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
-        if groups != 1 or base_width != 64:
-            raise ValueError('BasicBlock only supports groups=1 and base_width=64')
+        width = int(planes * (base_width / 64.)) * groups
+        #if groups != 1 or base_width != 64:
+        #    raise ValueError('BasicBlock only supports groups=1 and base_width=64')
         if dilation > 1:
             raise NotImplementedError("Dilation > 1 not supported in BasicBlock")
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
-        self.conv1 = conv3x3(inplanes, planes, stride)
-        self.bn1 = norm_layer(planes)
+        self.conv1 = conv3x3(inplanes, width, stride)
+        self.bn1 = norm_layer(width)
         self.relu = nn.ReLU(inplace=True)
 
-        self.conv2 = convAtten3x3(planes, planes)
-        self.bn2 = norm_layer(planes)
+        self.conv2 = convAtten3x3(width, width)
+        self.bn2 = norm_layer(width)
         self.downsample = downsample
         self.stride = stride
 
@@ -87,7 +84,139 @@ class BasicAttenBlock(nn.Module):
         out = self.relu(out)
 
         return out
-    
+
+
+class AttnBottleneck(nn.Module):
+    expansion = 4
+    __constants__ = ['downsample']
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
+                 base_width=64, dilation=1, norm_layer=None):
+        super(AttnBottleneck, self).__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        width = int(planes * (base_width / 64.)) * groups
+        # Both self.conv2 and self.downsample layers downsample the input when stride != 1
+        self.conv1 = conv1x1(inplanes, width)
+        self.bn1 = norm_layer(width)
+        self.conv2 = convAtten3x3(width, width, stride, groups, dilation)
+        self.bn2 = norm_layer(width)
+        self.conv3 = conv1x1(width, planes * self.expansion)
+        self.bn3 = norm_layer(planes * self.expansion)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
+
+
+class BasicBlock(nn.Module):
+    expansion = 1
+    __constants__ = ['downsample']
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
+                 base_width=64, dilation=1, norm_layer=None):
+        super(BasicBlock, self).__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+
+        # adding wide
+        width = int(planes * (base_width / 64.)) * groups
+
+        #if groups != 1 or base_width != 64:
+        #    raise ValueError('BasicBlock only supports groups=1 and base_width=64')
+        if dilation > 1:
+            raise NotImplementedError("Dilation > 1 not supported in BasicBlock")
+        # Both self.conv1 and self.downsample layers downsample the input when stride != 1
+        self.conv1 = conv3x3(inplanes, width, stride)
+        self.bn1 = norm_layer(width)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = conv3x3(width, width)
+        self.bn2 = norm_layer(width)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
+
+
+class Bottleneck(nn.Module):
+    expansion = 4
+    __constants__ = ['downsample']
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
+                 base_width=64, dilation=1, norm_layer=None):
+        super(Bottleneck, self).__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        width = int(planes * (base_width / 64.)) * groups
+        # Both self.conv2 and self.downsample layers downsample the input when stride != 1
+        self.conv1 = conv1x1(inplanes, width)
+        self.bn1 = norm_layer(width)
+        self.conv2 = conv3x3(width, width, stride, groups, dilation)
+        self.bn2 = norm_layer(width)
+        self.conv3 = conv1x1(width, planes * self.expansion)
+        self.bn3 = norm_layer(planes * self.expansion)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
 
 class ResNet(nn.Module):
 
@@ -95,6 +224,13 @@ class ResNet(nn.Module):
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
         super(ResNet, self).__init__()
+
+        if block.__name__ == 'BasicBlock':
+            attn_block = AttnBasicBlock
+        
+        if block.__name__ == 'Bottleneck':
+            attn_block = AttnBottleneck
+        
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
@@ -116,11 +252,11 @@ class ResNet(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2,
+        self.layer2 = self._make_layer(attn_block, 128, layers[1], stride=2,
                                        dilate=replace_stride_with_dilation[0])
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2,
+        self.layer3 = self._make_layer(attn_block, 256, layers[2], stride=2,
                                        dilate=replace_stride_with_dilation[1])
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
+        self.layer4 = self._make_layer(attn_block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(512 * block.expansion, num_classes)
@@ -137,12 +273,13 @@ class ResNet(nn.Module):
         # This improves the model by 0.2~0.3% according to https://arxiv.org/abs/1706.02677
         if zero_init_residual:
             for m in self.modules():
-                if isinstance(m, Bottleneck):
+                if (isinstance(m, Bottleneck) or isinstance(m, AttnBottleneck)):
                     nn.init.constant_(m.bn3.weight, 0)
-                elif isinstance(m, BasicAttenBlock):
+                elif (isinstance(m, BasicBlock) or isinstance(m, AttnBasicBlock)):
                     nn.init.constant_(m.bn2.weight, 0)
 
     def _make_layer(self, block, planes, blocks, stride=1, dilate=False):
+        # should I edit here? 
         norm_layer = self._norm_layer
         downsample = None
         previous_dilation = self.dilation
@@ -201,7 +338,7 @@ def attn_resnet18(pretrained=False, progress=True, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return _attn_resnet('attn_resnet18', BasicAttenBlock, [2, 2, 2, 2], pretrained, progress,
+    return _attn_resnet('attn_resnet18', BasicBlock, [2, 2, 2, 2], pretrained, progress,
                         **kwargs)
 
 def attn_resnet34(pretrained=False, progress=True, **kwargs):
@@ -212,5 +349,47 @@ def attn_resnet34(pretrained=False, progress=True, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return _attn_resnet('attn_resnet34', BasicAttenBlock, [3,4,6,3], pretrained, progress, 
+    return _attn_resnet('attn_resnet34', BasicBlock, [3,4,6,3], pretrained, progress, 
                         **kwargs)
+
+def attn_resnet50(pretrained=False, progress=True, **kwargs):
+    r"""ResNet-34 model from
+    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_
+    with edits to add attention
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return _attn_resnet('attn_resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress,
+                   **kwargs)
+
+def attn_wide_resnet28_10(pretrained=False, progress=True, **kwargs):
+    r"""Wide ResNet-50-2 model from
+    `"Wide Residual Networks" <https://arxiv.org/pdf/1605.07146.pdf>`_
+    The model is the same as ResNet except for the bottleneck number of channels
+    which is twice larger in every block. The number of channels in outer 1x1
+    convolutions is the same, e.g. last block in ResNet-50 has 2048-512-2048
+    channels, and in Wide ResNet-50-2 has 2048-1024-2048.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    kwargs['width_per_group'] = 64 * 2
+    return _attn_resnet('attn_wide_resnet28_10', AttnBottleneck, [3, 4, 6, 3],
+                   pretrained, progress, **kwargs)
+
+def attn_wide_resnet34_2(pretrained=False, progress=True, **kwargs):
+    r"""Wide ResNet-50-2 model from
+    `"Wide Residual Networks" <https://arxiv.org/pdf/1605.07146.pdf>`_
+    The model is the same as ResNet except for the bottleneck number of channels
+    which is twice larger in every block. The number of channels in outer 1x1
+    convolutions is the same, e.g. last block in ResNet-50 has 2048-512-2048
+    channels, and in Wide ResNet-50-2 has 2048-1024-2048.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    kwargs['width_per_group'] = 64 * 2
+    return _attn_resnet('attn_wide_resnet34_2', BasicBlock, [3, 4, 6, 3],
+                   pretrained, progress, **kwargs)
+
