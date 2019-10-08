@@ -1,5 +1,5 @@
 # data pipeline for coco data
-
+import torch
 try:
     #from nvidia.dali.plugin.pytorch import DALIClassificationIterator
     from nvidia.dali.pipeline import Pipeline
@@ -14,11 +14,18 @@ pipeline_logger = logging.getLogger(__name__ + '.coco_pipeline')
 
 # from the tutorial https://docs.nvidia.com/deeplearning/sdk/dali-developer-guide/docs/examples/detection_pipeline.html
 class COCOTrainPipeline(Pipeline):
-    def __init__(self, batch_size, num_threads, device_id, file_root, annotations_file, dali_cpu=False, local_shard=0, total_shards=1):
+    def __init__(self, batch_size, num_threads, device_id, file_root, annotations_file, dali_cpu=False):
         super(COCOTrainPipeline, self).__init__(batch_size, num_threads, device_id, seed=15)
+        if torch.distributed.is_initialized():
+            local_rank = torch.distributed.get_rank()
+            world_size = torch.distributed.get_world_size()
+        else:
+            local_rank = 0
+            world_size = 1
+
         train_instances = annotations_file + '/instances_train2017.json'
         self.input = ops.COCOReader(file_root = file_root, annotations_file = train_instances,
-                                     shard_id = device_id, num_shards = total_shards, ratio=True, ltrb=True)
+                                     shard_id = local_rank, num_shards = world_size, ratio=True, ltrb=True)
         self.decode = ops.nvJPEGDecoder(device = "mixed", output_type = types.RGB)
         self.flip = ops.Flip(device = "gpu")
         self.bbflip = ops.BbFlip(device = "cpu", ltrb=True)
@@ -67,11 +74,18 @@ class COCOTrainPipeline(Pipeline):
 
 
 class COCOValPipeline(Pipeline):
-    def __init__(self, batch_size, num_threads, device_id, file_root, annotations_file,  dali_cpu=False, local_shard=0, total_shards=1):
+    def __init__(self, batch_size, num_threads, device_id, file_root, annotations_file,  dali_cpu=False):
         super(COCOValPipeline, self).__init__(batch_size, num_threads, device_id, seed = 15)
+        if torch.distributed.is_initialized():
+            local_rank = torch.distributed.get_rank()
+            world_size = torch.distributed.get_world_size()
+        else:
+            local_rank = 0
+            world_size = 1
+
         val_instances = annotations_file + '/instances_val2017.json'
         self.input = ops.COCOReader(file_root = file_root, annotations_file = val_instances,
-                                     shard_id = device_id, num_shards = total_shards, ratio=True, ltrb=True)
+                                     shard_id = local_rank, num_shards = world_size, ratio=True, ltrb=True)
         self.decode = ops.nvJPEGDecoder(device = "mixed", output_type = types.RGB)
         self.flip = ops.Flip(device = "gpu")
         self.bbflip = ops.BbFlip(device = "cpu", ltrb=True)
