@@ -5,15 +5,17 @@ from torchvision.models.utils import load_state_dict_from_url
 # wide resnet from scratch
 # https://arxiv.org/pdf/1605.07146.pdf?
 
-__all__ = ['wide_resnet18',
-            'wide_resnet22',
-            'wide_resnet34']
+__all__ = ['wide_resnet22_1',
+            'wide_resnet22_2']
 
 model_url = {
-    'wide_resnet18': '',
-    'wide_resnet22': '',
-    'wide_resnet34': ''
+    'wide_resnet22_1': '',
+    'wide_resnet22_2': ''
 }
+
+# TODO
+# fix layer sizing
+# flex k
 
 class BasicBlock(nn.Module):
     
@@ -103,7 +105,7 @@ class Bottleneck(nn.Module):
 
 class WResNet(nn.Module):
 
-    def __init__(self, block, layers=[2,2,2,2], k=4, num_classes=1000):
+    def __init__(self, block, layers=[2,2,2], k=4, num_classes=1000):
         super(WResNet, self).__init__()
         
         self.bn1 = nn.BatchNorm2d(3) # norm variable in torchvision
@@ -120,10 +122,10 @@ class WResNet(nn.Module):
         #### second part
         
         self.group3 = self._make_layer(block, 32*k, 64*k, layers[2])
-        self.group4 = self._make_layer(block, 64*k, 128*k, layers[3])
+        #self.group4 = self._make_layer(block, 64*k, 128*k, layers[3])
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(128*k, num_classes)
+        self.fc = nn.Linear(64*k, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -170,7 +172,7 @@ class WResNet(nn.Module):
         x = self.group2(x)
         
         x = self.group3(x)
-        x = self.group4(x)
+        #x = self.group4(x)
         
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
@@ -187,7 +189,7 @@ def _wide_resnet(arch, block, layers, pretrained, progress, **kwargs):
         model.load_state_dict(state_dict)
     return model
 
-def wide_resnet18(pretrained=False, progress=True, **kwargs):
+def wide_resnet22_1(pretrained=False, progress=True, **kwargs):
     r"""
      '"Wide Residual Networks" <https://arxiv.org/pdf/1605.07146.pdf>'
      This model is based on resnet with the extra width parameters used in the paper
@@ -197,11 +199,10 @@ def wide_resnet18(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
 
-    return _wide_resnet('wide_resnet18', BasicBlock, [2,2,2,2],
-                        pretrained, progress, **kwargs)
+    return _wide_resnet('wide_resnet22_1', BasicBlock, [3,3,3],
+                        pretrained, progress, k=1, **kwargs)
 
-#TODO if this is 22 then should we have basic then bottleneck config?
-def wide_resnet22(pretrained=False, progress=True, **kwargs):
+def wide_resnet22_2(pretrained=False, progress=True, **kwargs):
     r"""
      '"Wide Residual Networks" <https://arxiv.org/pdf/1605.07146.pdf>'
      This model is based on resnet with the extra width parameters used in the paper
@@ -211,17 +212,5 @@ def wide_resnet22(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
 
-    return _wide_resnet('wide_resnet22', Bottleneck, [2,2,2,2],
-                        pretrained, progress, **kwargs)                     
-
-def wide_resnet34(pretrained=False, progress=True, **kwargs):
-    r"""Wide ResNet-34 model from
-    `"Wide Residual Networks" <https://arxiv.org/pdf/1605.07146.pdf>'
-     This model is based on resnet with the extra width parameters used in the paper
-     is uses a Basic B(3,3) block with resnet 34 replication
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
-    """
-    return _wide_resnet('wide_resnet34', Bottleneck, [3, 4, 6, 3], pretrained, progress,
-                   **kwargs)
+    return _wide_resnet('wide_resnet22_2', Bottleneck, [3,3,3],
+                        pretrained, progress, k=2, **kwargs)                     
