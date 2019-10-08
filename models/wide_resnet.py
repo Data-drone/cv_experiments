@@ -95,7 +95,7 @@ class Bottleneck(nn.Module):
             identity = self.downsample(x)
         
         # when we change size we need to downsample I guess?
-        #out += identity
+        out += identity
         
         return out
 
@@ -124,6 +124,13 @@ class WResNet(nn.Module):
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(128*k, num_classes)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
             
     def _make_layer(self, block, in_planes, out_planes, num_blocks, stride=1, dilate=False):
         downsample = None
@@ -193,11 +200,12 @@ def wide_resnet18(pretrained=False, progress=True, **kwargs):
     return _wide_resnet('wide_resnet18', BasicBlock, [2,2,2,2],
                         pretrained, progress, **kwargs)
 
+#TODO if this is 22 then should we have basic then bottleneck config?
 def wide_resnet22(pretrained=False, progress=True, **kwargs):
     r"""
      '"Wide Residual Networks" <https://arxiv.org/pdf/1605.07146.pdf>'
      This model is based on resnet with the extra width parameters used in the paper
-     is uses a Basic B(3,3) block.
+     is uses a Basic B(3,3) block with resnet 22 replication
      Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
@@ -210,10 +218,10 @@ def wide_resnet34(pretrained=False, progress=True, **kwargs):
     r"""Wide ResNet-34 model from
     `"Wide Residual Networks" <https://arxiv.org/pdf/1605.07146.pdf>'
      This model is based on resnet with the extra width parameters used in the paper
-     is uses a Basic B(3,3) block.
+     is uses a Basic B(3,3) block with resnet 34 replication
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return _wide_resnet('wide_resnet34', BasicBlock, [3, 4, 6, 3], pretrained, progress,
+    return _wide_resnet('wide_resnet34', Bottleneck, [3, 4, 6, 3], pretrained, progress,
                    **kwargs)
