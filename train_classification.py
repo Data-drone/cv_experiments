@@ -108,7 +108,6 @@ parser.add_argument('--local_rank', default=0, type=int,
             'or automatically set by using \'python -m multiproc\'.')    
 parser.add_argument('--opt-level', type=str, default='O0')
 
-
 # keep true unless we vary image sizes
 cudnn.benchmark = True
 
@@ -181,6 +180,8 @@ def train(train_loader, model, criterion, optimizer, epoch, scheduler):
         output = model(input_var)
         loss = criterion(output, target_var)
 
+        prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
+
         if args.distributed:
             reduced_loss = reduce_tensor(loss.data)
             prec1 = reduce_tensor(prec1)
@@ -188,7 +189,7 @@ def train(train_loader, model, criterion, optimizer, epoch, scheduler):
         else:
             reduced_loss = loss.data
 
-        prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
+       
 
         optimizer.zero_grad()
 
@@ -370,11 +371,7 @@ def main():
         model.aux_logits=False
 
     model = model.cuda()
-    if args.distributed:
-        # shared param/delay all reduce turns off bucketing in DDP, for lower latency runs this can improve perf
-        # for the older version of APEX please use shared_param, for newer one it is delay_allreduce
-        model = DDP(model, delay_allreduce=True)
-
+    
     # define loss function (criterion) and optimizer
     #### Edit point for tuning details ####
     criterion = nn.CrossEntropyLoss().cuda()
@@ -412,6 +409,12 @@ def main():
                                       loss_scale="dynamic" if args.dynamic_loss_scale else args.static_loss_scale
                                       )
     
+    if args.distributed:
+        # shared param/delay all reduce turns off bucketing in DDP, for lower latency runs this can improve perf
+        # for the older version of APEX please use shared_param, for newer one it is delay_allreduce
+        model = DDP(model, delay_allreduce=True)
+
+
     traindir = args.data[0]
     valdir= args.data[1]
 
