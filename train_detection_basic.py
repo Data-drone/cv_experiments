@@ -21,9 +21,9 @@ from data_prep.preproc_coco_detect import Compose, RandomHorizontalFlip, ToTenso
 from misc_utils.detection_logger import Logger
 import os
 
-import wandb
+#import wandb
 
-wandb.init(project="object_detection")
+#wandb.init(project="object_detection")
 
 ### fp16 to save space
 try:
@@ -35,9 +35,6 @@ except ImportError:
     raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this script.")
 assert torch.backends.cudnn.enabled, "fp16 mode requires cudnn backend to be enabled."
 
-args.distributed = False
-if 'WORLD_SIZE' in os.environ:
-    args.distributed = int(os.environ['WORLD_SIZE']) > 1
 
 # this was in the reference code base but need to unpack why?
 # the data has to be converted back to list for the detector later anyway?
@@ -90,7 +87,7 @@ def batch_loop(model, optimizer, data_loader, device, epoch, fp16):
         results_dict['epoch'] = epoch
         results_dict['batch'] = i
 
-        wandb.log(results_dict)
+        #wandb.log(results_dict)
 
         i += 1
 
@@ -121,7 +118,7 @@ def eval_loop(model, optimizer, data_loader, device, epoch, fp16):
         results_dict['epoch'] = epoch
         results_dict['batch'] = i
 
-        wandb.log(results_dict)
+        #wandb.log(results_dict)
 
         i += 1
 
@@ -216,11 +213,12 @@ def main(args):
                                       loss_scale="dynamic" if args.dynamic_loss_scale else args.static_loss_scale
                                       )
 
+    model.roi_heads.box_roi_pool.forward = \
+    amp.half_function(model.roi_heads.box_roi_pool.forward)
+
     if args.distributed:
         model = DDP(model)
 
-    model.roi_heads.box_roi_pool.forward = \
-    amp.half_function(model.roi_heads.box_roi_pool.forward)
 
     #wandb.watch(model)
 
@@ -275,10 +273,27 @@ if __name__ == '__main__':
     
     #fp16 vars
     parser.add_argument('--fp16', action='store_true', help='fp 16 or not')     
+    parser.add_argument('--static-loss-scale', type=float, default=1,
+                        help='Static loss scale, positive power of 2 values can improve fp16 convergence.')
+    parser.add_argument('--dynamic-loss-scale', action='store_true',
+                        help='Use dynamic loss scaling.  If supplied, this argument supersedes ' +
+                        '--static-loss-scale.')
+
     parser.add_argument('--opt-level', type=str, default='O1')
     parser.add_argument('--keep-batchnorm-fp32', type=str, default=None)
-    parser.add_argument('--loss-scale', type=str, default=None)                   
+    parser.add_argument('--loss-scale', type=str, default=None)      
+
+    ## distributed
+    parser.add_argument('--local_rank', default=0, type=int,
+        help='Used for multi-process training. Can either be manually set ' +
+            'or automatically set by using \'python -m multiproc\'.')    
+             
 
     args = parser.parse_args()
+
+    args.distributed = False
+    if 'WORLD_SIZE' in os.environ:
+        args.distributed = int(os.environ['WORLD_SIZE']) > 1
+
 
     main(args)

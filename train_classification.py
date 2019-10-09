@@ -190,7 +190,6 @@ def train(train_loader, model, criterion, optimizer, epoch, scheduler):
             reduced_loss = loss.data
 
        
-
         optimizer.zero_grad()
 
         if args.fp16:
