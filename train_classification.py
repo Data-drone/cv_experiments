@@ -139,7 +139,7 @@ def to_python_float(t):
 # tensor reduce to gather from different gpus
 def reduce_tensor(tensor):
     rt = tensor.clone()
-    dist.all_reduce(rt, op=dist.reduce_op.SUM)
+    dist.all_reduce(rt, op=dist.ReduceOp.SUM)
     rt /= args.world_size
     return rt
 
@@ -199,7 +199,7 @@ def train(train_loader, model, criterion, optimizer, epoch, scheduler):
             loss.backward()
             
         optimizer.step()
-        scheduler.step()
+        #scheduler.step()
 
         torch.cuda.synchronize()
 
@@ -478,6 +478,9 @@ def main():
                         'num_classes': args.num_classes,
                         'resize': (crop_size, crop_size)}, 
                         is_best, args.fp16, model)
+
+        # step scheduler
+        scheduler.step()
 
         # for each epoch need to reset
         train_loader.reset()
