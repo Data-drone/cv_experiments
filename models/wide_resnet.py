@@ -8,13 +8,15 @@ from torchvision.models.utils import load_state_dict_from_url
 __all__ = ['wide_resnet22_1',
             'wide_resnet22_2',
             'wide_resnet22_4',
-            'wide_resnet22_8']
+            'wide_resnet22_8',
+            'wide_resnet28_10']
 
 model_url = {
     'wide_resnet22_1': '',
     'wide_resnet22_2': '',
     'wide_resnet22_4': '',
-    'wide_resnet22_8': ''
+    'wide_resnet22_8': '',
+    'wide_resnet28_10': ''
 }
 
 # TODO
@@ -244,3 +246,18 @@ def wide_resnet22_8(pretrained=False, progress=True, **kwargs):
 
     return _wide_resnet('wide_resnet22_8', BasicBlock, [3,3,3],
                         pretrained, progress, k=4, **kwargs)                     
+
+
+# wide_resnet28_10
+def wide_resnet28_10(pretrained=False, progress=True, **kwargs):
+    r"""
+     '"Wide Residual Networks" <https://arxiv.org/pdf/1605.07146.pdf>'
+     This model is based on resnet with the extra width parameters used in the paper
+     is uses a Basic B(3,3) block with resnet 22 replication
+     Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+
+    return _wide_resnet('wide_resnet28_10', BasicBlock, [4,4,4],
+                        pretrained, progress, k=10, **kwargs)                     
