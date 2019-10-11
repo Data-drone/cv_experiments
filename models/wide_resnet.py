@@ -6,11 +6,15 @@ from torchvision.models.utils import load_state_dict_from_url
 # https://arxiv.org/pdf/1605.07146.pdf?
 
 __all__ = ['wide_resnet22_1',
-            'wide_resnet22_2']
+            'wide_resnet22_2',
+            'wide_resnet22_4',
+            'wide_resnet22_8']
 
 model_url = {
     'wide_resnet22_1': '',
-    'wide_resnet22_2': ''
+    'wide_resnet22_2': '',
+    'wide_resnet22_4': '',
+    'wide_resnet22_8': ''
 }
 
 # TODO
@@ -212,5 +216,31 @@ def wide_resnet22_2(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
 
-    return _wide_resnet('wide_resnet22_2', Bottleneck, [3,3,3],
+    return _wide_resnet('wide_resnet22_2', BasicBlock, [3,3,3],
                         pretrained, progress, k=2, **kwargs)                     
+
+def wide_resnet22_4(pretrained=False, progress=True, **kwargs):
+    r"""
+     '"Wide Residual Networks" <https://arxiv.org/pdf/1605.07146.pdf>'
+     This model is based on resnet with the extra width parameters used in the paper
+     is uses a Basic B(3,3) block with resnet 22 replication
+     Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+
+    return _wide_resnet('wide_resnet22_4', BasicBlock, [3,3,3],
+                        pretrained, progress, k=4, **kwargs)                     
+
+def wide_resnet22_8(pretrained=False, progress=True, **kwargs):
+    r"""
+     '"Wide Residual Networks" <https://arxiv.org/pdf/1605.07146.pdf>'
+     This model is based on resnet with the extra width parameters used in the paper
+     is uses a Basic B(3,3) block with resnet 22 replication
+     Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+
+    return _wide_resnet('wide_resnet22_8', BasicBlock, [3,3,3],
+                        pretrained, progress, k=4, **kwargs)                     
