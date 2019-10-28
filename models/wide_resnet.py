@@ -110,6 +110,9 @@ class Bottleneck(nn.Module):
 
 
 class WResNet(nn.Module):
+    """
+    Wide Resnet Class - uses three groups
+    """
 
     def __init__(self, block, layers=[2,2,2], k=4, num_classes=1000):
         super(WResNet, self).__init__()
