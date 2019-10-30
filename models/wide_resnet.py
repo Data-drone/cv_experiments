@@ -29,7 +29,7 @@ class BasicBlock(nn.Module):
         super(BasicBlock, self).__init__()
                 
         self.bn1 = nn.BatchNorm2d(insize)
-        self.relu = nn.ReLU(inplace=True)
+        self.act = nn.ReLU(inplace=True)
         self.conv1 = nn.Conv2d(in_channels=insize, out_channels=filters, kernel_size=3, stride=1,
                      padding=1, groups=1, bias=False, dilation=1)
         self.bn2 = nn.BatchNorm2d(filters)
@@ -43,13 +43,13 @@ class BasicBlock(nn.Module):
         identity = x
         
         out = self.bn1(x)
-        out = self.relu(out)
+        out = self.act(out)
         out = self.conv1(out)
 
         out = self.dropout(out)
         
         out = self.bn2(out)
-        out = self.relu(out)
+        out = self.act(out)
         out = self.conv2(out)
         
         if self.downsample is not None:
@@ -67,7 +67,7 @@ class Bottleneck(nn.Module):
         super(Bottleneck, self).__init__()
 
         self.bn1 = nn.BatchNorm2d(insize)
-        self.relu = nn.ReLU(inplace=True)
+        self.act = nn.ReLU(inplace=True)
         self.conv1 = nn.Conv2d(in_channels=insize, out_channels=filters, kernel_size=3, stride=1,
                      padding=1, groups=1, bias=False, dilation=1)
         self.bn2 = nn.BatchNorm2d(filters)
@@ -86,17 +86,17 @@ class Bottleneck(nn.Module):
         identity = x
         
         out = self.bn1(x)
-        out = self.relu(out)
+        out = self.act(out)
         out = self.conv1(out)
 
         out = self.dropout(out)
         
         out = self.bn2(out)
-        out = self.relu(out)
+        out = self.act(out)
         out = self.conv2(out)
 
         out = self.bn3(out)
-        out = self.relu(out)
+        out = self.act(out)
         out = self.conv3(out)
 
         if self.downsample is not None:
@@ -120,7 +120,7 @@ class WResNet(nn.Module):
         self.bn1 = nn.BatchNorm2d(3) # norm variable in torchvision
         self.conv1 = nn.Conv2d(3, 16, kernel_size=7, stride=2, padding=3,
                                bias=False)
-        self.relu = nn.ReLU(inplace=True)
+        self.act = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         
         #### first part
@@ -138,6 +138,7 @@ class WResNet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
+                # need see what to do here
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
             elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
                 nn.init.constant_(m.weight, 1)
@@ -172,7 +173,7 @@ class WResNet(nn.Module):
     def forward(self, x):
         
         x = self.bn1(x)
-        x = self.relu(x)
+        x = self.act(x)
         x = self.conv1(x)
         # does changing order change this?
         x = self.maxpool(x)
