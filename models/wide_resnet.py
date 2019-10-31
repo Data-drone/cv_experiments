@@ -1,11 +1,13 @@
 import torch
 import torch.nn as nn
 from torchvision.models.utils import load_state_dict_from_url
+from .layer_utils import Swish, Mish
 
 # wide resnet from scratch
 # https://arxiv.org/pdf/1605.07146.pdf?
 
 __all__ = ['wide_resnet22_1',
+            'wide_resnet22_1_swish',
             'wide_resnet22_2',
             'wide_resnet22_4',
             'wide_resnet22_8',
@@ -13,6 +15,7 @@ __all__ = ['wide_resnet22_1',
 
 model_url = {
     'wide_resnet22_1': '',
+    'wide_resnet22_1_swish': '',
     'wide_resnet22_2': '',
     'wide_resnet22_4': '',
     'wide_resnet22_8': '',
@@ -25,11 +28,11 @@ model_url = {
 
 class BasicBlock(nn.Module):
     
-    def __init__(self, insize, filters, downsample=None):
+    def __init__(self, insize, filters, downsample=None, activation = nn.ReLU(inplace=True)):
         super(BasicBlock, self).__init__()
                 
         self.bn1 = nn.BatchNorm2d(insize)
-        self.act = nn.ReLU(inplace=True)
+        self.act = activation
         self.conv1 = nn.Conv2d(in_channels=insize, out_channels=filters, kernel_size=3, stride=1,
                      padding=1, groups=1, bias=False, dilation=1)
         self.bn2 = nn.BatchNorm2d(filters)
@@ -63,11 +66,11 @@ class BasicBlock(nn.Module):
 
 class Bottleneck(nn.Module):
 
-    def __init__(self, insize, filters, downsample=None):
+    def __init__(self, insize, filters, downsample=None, activation = nn.ReLU(inplace=True)):
         super(Bottleneck, self).__init__()
 
         self.bn1 = nn.BatchNorm2d(insize)
-        self.act = nn.ReLU(inplace=True)
+        self.act =activation
         self.conv1 = nn.Conv2d(in_channels=insize, out_channels=filters, kernel_size=3, stride=1,
                      padding=1, groups=1, bias=False, dilation=1)
         self.bn2 = nn.BatchNorm2d(filters)
@@ -114,13 +117,13 @@ class WResNet(nn.Module):
     Wide Resnet Class - uses three groups
     """
 
-    def __init__(self, block, layers=[2,2,2], k=4, num_classes=1000):
+    def __init__(self, block, layers=[2,2,2], k=4, num_classes=1000, activation = nn.ReLU(inplace=True)):
         super(WResNet, self).__init__()
         
         self.bn1 = nn.BatchNorm2d(3) # norm variable in torchvision
         self.conv1 = nn.Conv2d(3, 16, kernel_size=7, stride=2, padding=3,
                                bias=False)
-        self.act = nn.ReLU(inplace=True)
+        self.act = activation
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         
         #### first part
@@ -138,7 +141,7 @@ class WResNet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                # need see what to do here
+                # need see what to do here - hard coded to relu for now...
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
             elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
                 nn.init.constant_(m.weight, 1)
@@ -211,6 +214,20 @@ def wide_resnet22_1(pretrained=False, progress=True, **kwargs):
 
     return _wide_resnet('wide_resnet22_1', BasicBlock, [3,3,3],
                         pretrained, progress, k=1, **kwargs)
+
+def wide_resnet22_1_swish(pretrained=False, progress=True, **kwargs):
+    r"""
+     '"Wide Residual Networks" <https://arxiv.org/pdf/1605.07146.pdf>'
+     This model is based on resnet with the extra width parameters used in the paper
+     is uses a Basic B(3,3) block.
+     Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+
+    return _wide_resnet('wide_resnet22_1', BasicBlock, [3,3,3],
+                        pretrained, progress, k=1, activation=Swish(), **kwargs)
+
 
 def wide_resnet22_2(pretrained=False, progress=True, **kwargs):
     r"""
