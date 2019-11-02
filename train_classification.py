@@ -108,6 +108,11 @@ parser.add_argument('--local_rank', default=0, type=int,
             'or automatically set by using \'python -m multiproc\'.')    
 parser.add_argument('--opt-level', type=str, default='O0')
 
+### change activation function
+ACT_FUNC = ['relu','swish', 'mish']
+parser.add_argument('--act-func', default='relu',
+                    choices=ACT_FUNC)
+
 # keep true unless we vary image sizes
 cudnn.benchmark = True
 
@@ -357,7 +362,7 @@ def main():
         if args.arch in model_names:
             model = models.__dict__[args.arch](pretrained=True)
         elif args.arch in local_model_names:
-            model = local_models.__dict__[args.arch](pretrained=True)
+            model = local_models.__dict__[args.arch](pretrained=True, activation_function=args.ac)
     else:
         print("=> creating new model '{}'".format(args.arch))
         if args.arch in model_names:

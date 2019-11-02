@@ -8,6 +8,7 @@ from .layer_utils import Swish, Mish
 
 __all__ = ['wide_resnet22_1',
             'wide_resnet22_1_swish',
+            'wide_resnet22_1_mish',
             'wide_resnet22_2',
             'wide_resnet22_4',
             'wide_resnet22_8',
@@ -16,6 +17,7 @@ __all__ = ['wide_resnet22_1',
 model_url = {
     'wide_resnet22_1': '',
     'wide_resnet22_1_swish': '',
+    'wide_resnet22_1_mish': '',
     'wide_resnet22_2': '',
     'wide_resnet22_4': '',
     'wide_resnet22_8': '',
@@ -225,8 +227,21 @@ def wide_resnet22_1_swish(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
 
-    return _wide_resnet('wide_resnet22_1', BasicBlock, [3,3,3],
+    return _wide_resnet('wide_resnet22_1_swish', BasicBlock, [3,3,3],
                         pretrained, progress, k=1, activation=Swish(), **kwargs)
+
+def wide_resnet22_1_mish(pretrained=False, progress=True, **kwargs):
+    r"""
+     '"Wide Residual Networks" <https://arxiv.org/pdf/1605.07146.pdf>'
+     This model is based on resnet with the extra width parameters used in the paper
+     is uses a Basic B(3,3) block.
+     Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+
+    return _wide_resnet('wide_resnet22_1_mish', BasicBlock, [3,3,3],
+                        pretrained, progress, k=1, activation=Mish(), **kwargs)
 
 
 def wide_resnet22_2(pretrained=False, progress=True, **kwargs):
