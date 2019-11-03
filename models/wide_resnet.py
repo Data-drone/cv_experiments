@@ -130,12 +130,12 @@ class WResNet(nn.Module):
         
         #### first part
         
-        self.group1 = self._make_layer(block, 16, 16*k, layers[0])
-        self.group2 = self._make_layer(block, 16*k, 32*k, layers[1])
+        self.group1 = self._make_layer(block, 16, 16*k, layers[0], activation=activation)
+        self.group2 = self._make_layer(block, 16*k, 32*k, layers[1], activation=activation)
         
         #### second part
         
-        self.group3 = self._make_layer(block, 32*k, 64*k, layers[2])
+        self.group3 = self._make_layer(block, 32*k, 64*k, layers[2], activation=activation)
         #self.group4 = self._make_layer(block, 64*k, 128*k, layers[3])
 
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
@@ -149,7 +149,8 @@ class WResNet(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
             
-    def _make_layer(self, block, in_planes, out_planes, num_blocks, stride=1, dilate=False):
+    def _make_layer(self, block, in_planes, out_planes, num_blocks, stride=1, dilate=False,
+                    activation = nn.ReLU(inplace=True)):
         downsample = None
         
         downsample_conv = nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=1,
@@ -168,10 +169,11 @@ class WResNet(nn.Module):
             )
         
         layers = []
-        layers.append(block(insize=in_planes, filters=out_planes, downsample=downsample))
+        layers.append(block(insize=in_planes, filters=out_planes, downsample=downsample, 
+                            activation=activation))
         
         for _ in range(1, num_blocks):
-            layers.append(block(insize=out_planes, filters=out_planes))
+            layers.append(block(insize=out_planes, filters=out_planes, activation=activation))
         
         return nn.Sequential(*layers)
         
