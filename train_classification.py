@@ -23,7 +23,7 @@ from lr_schedulers.onecyclelr import OneCycleLR
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from loss.label_smoothing import LabelSmoothing
-
+from models.layer_utils import Swish, Mish
 
 
 #TODO
@@ -357,20 +357,27 @@ def main():
             print("Warning:  if --fp16 is not used, static_loss_scale will be ignored.")
 
 
+    if args.act_func == 'swish':
+        act_funct = Swish()
+    elif args.act_func == 'mish':
+        act_funct = Mish()
+    elif args.act_func == 'relu':
+        act_funct = nn.ReLU(inplace=True)
+
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
         if args.arch in model_names:
             model = models.__dict__[args.arch](pretrained=True)
         elif args.arch in local_model_names:
             model = local_models.__dict__[args.arch](pretrained=True, 
-                                        activation=args.act_func)
+                                        activation=act_funct)
     else:
         print("=> creating new model '{}'".format(args.arch))
         if args.arch in model_names:
             model = models.__dict__[args.arch](pretrained=False)
         elif args.arch in local_model_names:
             model = local_models.__dict__[args.arch](pretrained=False,
-                                                    activation=args.act_func)
+                                                    activation=act_funct)
 
     # exception for inception v3 as per https://stackoverflow.com/questions/53476305/attributeerror-tuple-object-has-no-attribute-log-softmax#
     if args.arch == 'inception_v3':
