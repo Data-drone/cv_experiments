@@ -363,14 +363,14 @@ def main():
             model = models.__dict__[args.arch](pretrained=True)
         elif args.arch in local_model_names:
             model = local_models.__dict__[args.arch](pretrained=True, 
-                                        activation_function=args.act_func)
+                                        activation=args.act_func)
     else:
         print("=> creating new model '{}'".format(args.arch))
         if args.arch in model_names:
             model = models.__dict__[args.arch](pretrained=False)
         elif args.arch in local_model_names:
             model = local_models.__dict__[args.arch](pretrained=False,
-                                                    activation_function=args.act_func)
+                                                    activation=args.act_func)
 
     # exception for inception v3 as per https://stackoverflow.com/questions/53476305/attributeerror-tuple-object-has-no-attribute-log-softmax#
     if args.arch == 'inception_v3':
