@@ -166,6 +166,10 @@ def accuracy(output, target, topk=(1,)) -> list:
 
 
 def train(train_loader, model, criterion, optimizer, epoch, scheduler):
+    # Main train loop
+    # loads batches from the train loader
+    # and loops through 1 epoch
+
 
     model.train()
     top1 = AverageMeter()
@@ -336,7 +340,7 @@ def main():
     """
 
     # distributed training variable
-    args.gpu = 0
+    args.gpu = 1
     args.world_size = 1
     
     if args.fp16:
