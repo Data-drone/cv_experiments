@@ -2,6 +2,13 @@
 
 A repo for experimenting in Computer Vision
 
+# Requirements
+
+* PyTorch 1.5.0
+* Torchvision 0.6.0
+* Nvidia Dali 0.21.0
+* Weights and Biases Library
+
 # Notes
 
 Models follow the coding structure of torchvision models
@@ -11,4 +18,4 @@ Main entry point is via the train_xxx scripts
 
 # ToDo
 
-Add Hiplot / Captum?
+Test Hyperparam tuning and Lightning Package
