@@ -19,7 +19,7 @@ class LightningModel(LightningModule):
     def __init__(self, hparams, model, optimizer, scheduler, criterion):
         super().__init__()
 
-        # set from hparams?
+        self.hparams = hparams
         self.model = model
         self.optimizer = optimizer
         self.scheduler = scheduler
@@ -92,9 +92,9 @@ class LightningModel(LightningModule):
             [transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
         self.train_data = torchvision.datasets.CIFAR10(root='../cv_data', train=True,
-                                        download=False, transform=transform)
+                                        download=True, transform=transform)
         self.test_data = torchvision.datasets.CIFAR10(root='../cv_data', train=True,
-                                        download=False, transform=transform)
+                                        download=True, transform=transform)
 
     def train_dataloader(self):
         log.info('Training data loader called.')

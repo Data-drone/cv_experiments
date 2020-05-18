@@ -94,7 +94,7 @@ def main(hparams):
     criterion = nn.CrossEntropyLoss()
 
     # send to lightning
-    model = LightningModel(hparams, cv_model, scheduler, criterion)
+    model = LightningModel(hparams, cv_model, optimizer, scheduler, criterion)
 
     # ------------------------
     # 2 INIT TRAINER
