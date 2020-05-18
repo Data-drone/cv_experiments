@@ -5,6 +5,8 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+import torchvision
+import torchvision.transforms as transforms
 
 from pytorch_lightning import _logger as log
 from pytorch_lightning.core import LightningModule
@@ -84,10 +86,15 @@ class LightningModel(LightningModule):
         return [self.optimizer], [self.scheduler]
 
     
-    def prepare_data(self, train, test):
+    def prepare_data(self):
         # TODO fix this one
-        self.train_data = train
-        self.test_data = test
+        transform = transforms.Compose(
+            [transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        self.train_data = torchvision.datasets.CIFAR10(root='../cv_data', train=True,
+                                        download=False, transform=transform)
+        self.test_data = torchvision.datasets.CIFAR10(root='../cv_data', train=True,
+                                        download=False, transform=transform)
 
     def train_dataloader(self):
         log.info('Training data loader called.')
@@ -102,9 +109,11 @@ class LightningModel(LightningModule):
         return DataLoader(self.test_data, batch_size=self.hparams.batch_size, num_workers=4)
 
     @staticmethod
-    def add_model_specific_args(parent_parser, root_dir):  # pragma: no-cover
+    def add_model_specific_args(parent_parser):  # pragma: no-cover
     
         parser = ArgumentParser(parents=[parent_parser])
 
         parser.add_argument('--epochs', default=20, type=int)
         parser.add_argument('--batch_size', default=64, type=int)
+
+        return parser

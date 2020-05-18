@@ -54,14 +54,14 @@ def main(hparams):
 
 
     # initiate model
-    print("=> creating new model '{}'".format(hparams.arch))
-    if hparams.arch in model_names:
-        cv_model = models.__dict__[hparams.arch](pretrained=False)
-    elif hparams.arch in local_model_names:
-        cv_model = local_models.__dict__[hparams.arch](pretrained=False,
+    print("=> creating new model '{}'".format(hparams.model))
+    if hparams.model in model_names:
+        cv_model = models.__dict__[hparams.model](pretrained=False)
+    elif hparams.model in local_model_names:
+        cv_model = local_models.__dict__[hparams.model](pretrained=False,
                                                     activation=act_funct)
 
-    if hparams.arch == 'inception_v3':
+    if hparams.model == 'inception_v3':
         model.aux_logits=False
 
     # optimizer
@@ -149,7 +149,7 @@ if __name__ == '__main__':
     )
 
     parent_parser.add_argument(
-        '--activation',
+        '--act_func',
         type=str,
         default='relu',
         choices = ['relu', 'swish', 'mish'],
