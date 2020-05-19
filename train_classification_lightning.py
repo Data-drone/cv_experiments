@@ -3,11 +3,10 @@ Runs a model on a single node across multiple gpus.
 """
 import os
 from argparse import ArgumentParser
+from pytorch_lightning.loggers import WandbLogger
 
 import numpy as np
 import torch
-import torch.nn as nn
-
 
 import pytorch_lightning as pl
 from models.lightning_classification import LightningModel
@@ -19,7 +18,7 @@ torch.manual_seed(SEED)
 np.random.seed(SEED)
 
 
-def main(hparams):
+def main(hparams, wandb_logger):
     """
     Main training routine specific for this project
     :param hparams:
@@ -37,10 +36,9 @@ def main(hparams):
     #    act_funct = nn.ReLU(inplace=True)
     
     # criterion
-    criterion = nn.CrossEntropyLoss()
-
+    
     # send to lightning
-    model = LightningModel(hparams, criterion)
+    model = LightningModel(hparams)
 
     # ------------------------
     # 2 INIT TRAINER
@@ -50,6 +48,7 @@ def main(hparams):
         gpus=hparams.gpus,
         distributed_backend=hparams.distributed_backend,
         precision=16 if hparams.use_16bit else 32,
+        logger=wandb_logger
     )
 
     # ------------------------
@@ -65,6 +64,8 @@ if __name__ == '__main__':
     # these are project-wide arguments
 
     #root_dir = os.path.dirname(os.path.realpath(__file__))
+    wandb_logger = WandbLogger(project='lightning_test')
+
     parent_parser = ArgumentParser(add_help=False)
 
     # gpu args
@@ -103,4 +104,4 @@ if __name__ == '__main__':
     # ---------------------
     # RUN TRAINING
     # ---------------------
-    main(hyperparams)
+    main(hyperparams, wandb_logger)

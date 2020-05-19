@@ -24,7 +24,7 @@ from torch.optim.lr_scheduler import CyclicLR
 
 class LightningModel(LightningModule):
 
-    def __init__(self, hparams, criterion):
+    def __init__(self, hparams):
         super().__init__()
 
         model_names = sorted(name for name in models.__dict__
@@ -58,7 +58,7 @@ class LightningModel(LightningModule):
             cv_model.aux_logits=False
 
         self.model = cv_model
-        self.criterion = criterion
+        self.criterion = nn.CrossEntropyLoss()
 
 
     def forward(self, x):
