@@ -75,6 +75,7 @@ class LightningModel(LightningModule):
         y_hat = self(x)
         loss = self.criterion(y_hat, y) # this is the criterion
         tensorboard_logs = {'train_loss': loss}
+        print(type(loss))
         return {'loss': loss, 'log': tensorboard_logs}
 
     def validation_step(self, batch, batch_idx):

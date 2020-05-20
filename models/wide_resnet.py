@@ -216,8 +216,8 @@ def wide_resnet22_1(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
 
-    return _wide_resnet('wide_resnet22_1', BasicBlock, [3,3,3],
-                        pretrained, progress, k=1, **kwargs)
+    return _wide_resnet(arch = 'wide_resnet22_1', block = BasicBlock, layers = [3,3,3],
+                        pretrained = pretrained, progress = progress, k=1, **kwargs)
 
 def wide_resnet22_1_swish(pretrained=False, progress=True, **kwargs):
     r"""
@@ -229,8 +229,8 @@ def wide_resnet22_1_swish(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
 
-    return _wide_resnet('wide_resnet22_1_swish', BasicBlock, [3,3,3],
-                        pretrained, progress, k=1, activation=Swish(), **kwargs)
+    return _wide_resnet(arch = 'wide_resnet22_1_swish', block = BasicBlock, layers = [3,3,3],
+                        pretrained = pretrained, progress = progress, k=1, activation=Swish(), **kwargs)
 
 def wide_resnet22_1_mish(pretrained=False, progress=True, **kwargs):
     r"""
@@ -242,8 +242,8 @@ def wide_resnet22_1_mish(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
 
-    return _wide_resnet('wide_resnet22_1_mish', BasicBlock, [3,3,3],
-                        pretrained, progress, k=1, activation=Mish(), **kwargs)
+    return _wide_resnet(arch = 'wide_resnet22_1_mish', block = BasicBlock, layers = [3,3,3],
+                        pretrained = pretrained, progress = progress, k=1, activation=Mish(), **kwargs)
 
 
 def wide_resnet22_2(pretrained=False, progress=True, **kwargs):
@@ -256,8 +256,8 @@ def wide_resnet22_2(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
 
-    return _wide_resnet('wide_resnet22_2', BasicBlock, [3,3,3],
-                        pretrained, progress, k=2, **kwargs)                     
+    return _wide_resnet(arch = 'wide_resnet22_2', block = BasicBlock, layers = [3,3,3],
+                        pretrained = pretrained, progress = progress, k=2, **kwargs)                     
 
 def wide_resnet22_4(pretrained=False, progress=True, **kwargs):
     r"""
@@ -269,8 +269,8 @@ def wide_resnet22_4(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
 
-    return _wide_resnet('wide_resnet22_4', BasicBlock, [3,3,3],
-                        pretrained, progress, k=4, **kwargs)                     
+    return _wide_resnet(arch = 'wide_resnet22_4', block = BasicBlock, layers = [3,3,3],
+                        pretrained = pretrained, progress = progress, k=4, **kwargs)                     
 
 def wide_resnet22_8(pretrained=False, progress=True, **kwargs):
     r"""
@@ -282,8 +282,8 @@ def wide_resnet22_8(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
 
-    return _wide_resnet('wide_resnet22_8', BasicBlock, [3,3,3],
-                        pretrained, progress, k=4, **kwargs)                     
+    return _wide_resnet(arch = 'wide_resnet22_8', block = BasicBlock, layers = [3,3,3],
+                        pretrained = pretrained, progress = progress, k=4, **kwargs)                     
 
 
 # wide_resnet28_10
@@ -297,5 +297,5 @@ def wide_resnet28_10(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
 
-    return _wide_resnet('wide_resnet28_10', BasicBlock, [4,4,4],
-                        pretrained, progress, k=10, **kwargs)                     
+    return _wide_resnet(arch = 'wide_resnet28_10', block = BasicBlock, layers = [4,4,4],
+                        pretrained = pretrained, progress = progress, k=10, **kwargs)                     
