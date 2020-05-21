@@ -18,7 +18,7 @@ import logging
 import models as local_models
 import optimisers as local_optimisers
 from utils import AverageMeter
-from lr_schedulers.onecyclelr import OneCycleLR
+from learning_rate_schedulers.onecyclelr import OneCycleLR
 
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 

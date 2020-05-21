@@ -11,7 +11,7 @@ import torch
 import pytorch_lightning as pl
 from models.lightning_classification import LightningModel
 
-from lr_schedulers.onecyclelr import OneCycleLR
+#from lr_schedulers.onecyclelr import OneCycleLR
 
 SEED = 2334
 torch.manual_seed(SEED)
@@ -27,17 +27,6 @@ def main(hparams, wandb_logger):
     # 1 INIT LIGHTNING MODEL
     # ------------------------
 
-    # activation function
-    #if hparams.act_func == 'swish':
-    #    act_funct = Swish()
-    #elif hparams.act_func == 'mish':
-    #    act_funct = Mish()
-    #elif hparams.act_func == 'relu':
-    #    act_funct = nn.ReLU(inplace=True)
-    
-    # criterion
-    
-    # send to lightning
     model = LightningModel(hparams)
 
     # ------------------------

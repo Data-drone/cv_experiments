@@ -17,6 +17,8 @@ from pytorch_lightning import _logger as log
 from pytorch_lightning.core import LightningModule
 
 from torch.optim.lr_scheduler import CyclicLR
+from learning_rate_schedulers.onecyclelr import OneCycleLR
+
 
 ## lightning wrapper around cvision
 # Need to test
@@ -75,7 +77,7 @@ class LightningModel(LightningModule):
         y_hat = self(x)
         loss = self.criterion(y_hat, y) # this is the criterion
         tensorboard_logs = {'train_loss': loss}
-        print(type(loss))
+        #print(type(loss))
         return {'loss': loss, 'log': tensorboard_logs}
 
     def validation_step(self, batch, batch_idx):
@@ -144,10 +146,13 @@ class LightningModel(LightningModule):
                                                 weight_decay=self.hparams.weight_decay)
 
         # scheduler
-        scheduler = CyclicLR(optimizer, 0.00001, self.hparams.lr)
+        #scheduler = CyclicLR(optimizer, 0.00001, self.hparams.lr)
+        scheduler = OneCycleLR(optimizer, num_steps=int(self.hparams.epochs/2), 
+                            lr_range=(self.hparams.lr/10, self.hparams.lr))
 
+        schedule = {'scheduler': scheduler, 'interval': 'epoch'}
 
-        return [optimizer], [scheduler]
+        return [optimizer], [schedule]
 
     
     def prepare_data(self):
