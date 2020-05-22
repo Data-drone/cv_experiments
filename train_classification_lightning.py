@@ -9,6 +9,7 @@ import numpy as np
 import torch
 
 import pytorch_lightning as pl
+
 from models.lightning_classification import LightningModel
 
 #from lr_schedulers.onecyclelr import OneCycleLR
@@ -29,6 +30,18 @@ def main(hparams, wandb_logger):
 
     model = LightningModel(hparams)
 
+    # -------
+    # EARLY STOPPING
+    # -------
+
+    early_stop_callback = pl.callbacks.EarlyStopping(
+        monitor='val_loss',
+        min_delta=0.00,
+        patience=3,
+        verbose=True,
+        mode='min'
+    )
+
     # ------------------------
     # 2 INIT TRAINER
     # ------------------------
@@ -37,7 +50,8 @@ def main(hparams, wandb_logger):
         gpus=hparams.gpus,
         distributed_backend=hparams.distributed_backend,
         precision=16 if hparams.use_16bit else 32,
-        logger=wandb_logger
+        early_stop_callback=early_stop_callback
+        #logger=wandb_logger
     )
 
     # ------------------------
