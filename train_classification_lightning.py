@@ -3,7 +3,7 @@ Runs a model on a single node across multiple gpus.
 """
 import os
 from argparse import ArgumentParser
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers import TensorBoardLogger
 
 import numpy as np
 import torch
@@ -19,7 +19,7 @@ torch.manual_seed(SEED)
 np.random.seed(SEED)
 
 
-def main(hparams, wandb_logger):
+def main(hparams, logger):
     """
     Main training routine specific for this project
     :param hparams:
@@ -50,8 +50,8 @@ def main(hparams, wandb_logger):
         gpus=hparams.gpus,
         distributed_backend=hparams.distributed_backend,
         precision=16 if hparams.use_16bit else 32,
-        early_stop_callback=early_stop_callback
-        #logger=wandb_logger
+        early_stop_callback=early_stop_callback,
+        logger=logger
     )
 
     # ------------------------
@@ -67,7 +67,8 @@ if __name__ == '__main__':
     # these are project-wide arguments
 
     #root_dir = os.path.dirname(os.path.realpath(__file__))
-    wandb_logger = WandbLogger(project='lightning_test')
+    #wandb_logger = WandbLogger(project='lightning_test')
+    logger = TensorBoardLogger("tb_logs", name="cv_exp")
 
     parent_parser = ArgumentParser(add_help=False)
 
@@ -107,4 +108,4 @@ if __name__ == '__main__':
     # ---------------------
     # RUN TRAINING
     # ---------------------
-    main(hyperparams, wandb_logger)
+    main(hyperparams, logger)
