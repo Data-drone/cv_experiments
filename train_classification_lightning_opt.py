@@ -61,7 +61,7 @@ def main(hparams, logger):
     # ------------------------
     trainer.fit(model)
 
-    
+
 
 
 def tune_model(config):
@@ -123,8 +123,9 @@ if __name__ == '__main__':
     #
 
     analysis = tune.run(
-        tune_model, config={"lr": tune.grid_search([0.001], 0.01, 0.1), 
+        tune_model, config={"lr": tune.grid_search([0.001, 0.01, 0.1]), 
                             "hparams": hyperparams,
-                            "logger": logger})
+                            "logger": logger},
+                            resources_per_trial={'gpu': 1})
 
     
