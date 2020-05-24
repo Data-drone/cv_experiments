@@ -12,6 +12,8 @@ import pytorch_lightning as pl
 
 from models.lightning_classification import LightningModel
 
+from ray import tune
+
 #from lr_schedulers.onecyclelr import OneCycleLR
 
 SEED = 2334
@@ -58,6 +60,13 @@ def main(hparams, logger):
     # 3 START TRAINING
     # ------------------------
     trainer.fit(model)
+
+    
+
+
+def tune_model(config):
+
+    main(config['hparams'], config['logger'])
 
 
 if __name__ == '__main__':
@@ -108,4 +117,14 @@ if __name__ == '__main__':
     # ---------------------
     # RUN TRAINING
     # ---------------------
-    main(hyperparams, logger)
+
+    #
+    # add tune
+    #
+
+    analysis = tune.run(
+        tune_model, config={"lr": tune.grid_search([0.001], 0.01, 0.1), 
+                            "hparams": hyperparams,
+                            "logger": logger})
+
+    
