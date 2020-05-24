@@ -13,6 +13,7 @@ import pytorch_lightning as pl
 from models.lightning_classification import LightningModel
 
 from ray import tune
+import ray
 
 #from lr_schedulers.onecyclelr import OneCycleLR
 
@@ -20,6 +21,9 @@ SEED = 2334
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
+ray.init(webui_host="0.0.0.0")
+## TODO
+## execute main from a jupyter and see if model.test_result gets us accuracy 
 
 def main(hparams, logger):
     """
@@ -126,6 +130,7 @@ if __name__ == '__main__':
         tune_model, config={"lr": tune.grid_search([0.001, 0.01, 0.1]), 
                             "hparams": hyperparams,
                             "logger": logger},
-                            resources_per_trial={'gpu': 1})
+                            resources_per_trial={'gpu': 1,
+                                                'cpu': 4})
 
     
