@@ -9,6 +9,7 @@ import numpy as np
 import torch
 
 import pytorch_lightning as pl
+from pytorch_lightning import Callback
 
 from models.lightning_classification import LightningModel
 
@@ -17,6 +18,16 @@ from models.lightning_classification import LightningModel
 SEED = 2334
 torch.manual_seed(SEED)
 np.random.seed(SEED)
+
+class MetricsCallback(Callback):
+    """PyTorch Lightning metric callback."""
+
+    def __init__(self):
+        super().__init__()
+        self.metrics = []
+
+    def on_validation_end(self, trainer, pl_module):
+        self.metrics.append(trainer.callback_metrics)
 
 
 def main(hparams, logger):
@@ -42,6 +53,8 @@ def main(hparams, logger):
         mode='min'
     )
 
+    metrics_callback = MetricsCallback()
+
     # ------------------------
     # 2 INIT TRAINER
     # ------------------------
@@ -50,6 +63,7 @@ def main(hparams, logger):
         gpus=hparams.gpus,
         distributed_backend=hparams.distributed_backend,
         precision=16 if hparams.use_16bit else 32,
+        callbacks = [metrics_callback],
         #early_stop_callback=early_stop_callback,
         logger=logger
     )
@@ -58,6 +72,8 @@ def main(hparams, logger):
     # 3 START TRAINING
     # ------------------------
     trainer.fit(model)
+
+    return metrics_callback.metrics[-1]["val_acc"]
 
 
 if __name__ == '__main__':
@@ -108,4 +124,7 @@ if __name__ == '__main__':
     # ---------------------
     # RUN TRAINING
     # ---------------------
-    main(hyperparams, logger)
+    result = main(hyperparams, logger)
+
+    # doesn't work
+    #print(trained_model.test_result())
