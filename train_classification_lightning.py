@@ -10,6 +10,8 @@ import torch
 
 import pytorch_lightning as pl
 from pytorch_lightning import Callback
+from pytorch_lightning.logging import LightningLoggerBase
+from pytorch_lightning.utilities import rank_zero_only
 
 from models.lightning_classification import LightningModel
 
@@ -19,6 +21,41 @@ SEED = 2334
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
+
+class DictLogger(LightningLoggerBase):
+    """Custom logger to get metrics back"""
+
+    def __init__(self, version):
+        super(DictLogger, self).__init__()
+        self.metrics = []
+        self._version = version
+
+    @rank_zero_only
+    def log_metrics(self, metrics, step=None):
+        self.metrics.append(metrics)
+    
+    @property
+    def version(self):
+        return self._version
+
+    @property
+    def experiment(self):
+        """Return the experiment object associated with this logger."""
+
+    @property
+    def name(self):
+        """Return the experiment name."""
+        return 'optuna'
+
+    @rank_zero_only
+    def log_hyperparams(self, params):
+        """
+        Record hyperparameters.
+        Args:
+            params: :class:`~argparse.Namespace` containing the hyperparameters
+        """
+
+    
 class MetricsCallback(Callback):
     """PyTorch Lightning metric callback."""
 
@@ -54,7 +91,7 @@ def main(hparams, logger):
     )
 
     metrics_callback = MetricsCallback()
-
+    additional_logger = DictLogger('1')
     # ------------------------
     # 2 INIT TRAINER
     # ------------------------
@@ -63,9 +100,9 @@ def main(hparams, logger):
         gpus=hparams.gpus,
         distributed_backend=hparams.distributed_backend,
         precision=16 if hparams.use_16bit else 32,
-        callbacks = [metrics_callback],
+        #callbacks = [metrics_callback],
         #early_stop_callback=early_stop_callback,
-        logger=logger
+        logger=[logger, additional_logger]
     )
 
     # ------------------------
@@ -73,7 +110,7 @@ def main(hparams, logger):
     # ------------------------
     trainer.fit(model)
 
-    return metrics_callback.metrics[-1]["val_acc"]
+    return additional_logger #.metrics[-1]["val_loss"]
 
 
 if __name__ == '__main__':
