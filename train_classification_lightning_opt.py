@@ -12,6 +12,13 @@ import pytorch_lightning as pl
 
 from models.lightning_classification import LightningModel
 
+from pytorch_lightning.logging import LightningLoggerBase
+from pytorch_lightning.utilities import rank_zero_only
+
+import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
+from torchvision.datasets import ImageFolder
+
 from ray import tune
 import ray
 
@@ -30,6 +37,29 @@ def main(hparams, logger):
     Main training routine specific for this project
     :param hparams:
     """
+
+    # ------------------------
+    # Move data loaders out so that the lightning model can be generic
+    # ------------------------
+
+    data_transform = transforms.Compose(
+            [transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+    train_data = ImageFolder(
+        root=os.path.join('../cv_data/cifar10', 'train'),
+        transform = data_transform
+    )
+
+    val_data = ImageFolder(
+        root=os.path.join('../cv_data/cifar10', 'test'),
+        transform = data_transform
+    )
+
+    train_loader = DataLoader(train_data, batch_size=hparams.batch_size, num_workers=hparams.nworkers)
+    val_loader = DataLoader(val_data, batch_size=hparams.batch_size, num_workers=hparams.nworkers)
+
+
     # ------------------------
     # 1 INIT LIGHTNING MODEL
     # ------------------------
@@ -63,7 +93,8 @@ def main(hparams, logger):
     # ------------------------
     # 3 START TRAINING
     # ------------------------
-    trainer.fit(model)
+    trainer.fit(model, train_dataloader = train_loader,
+                        val_dataloaders = val_loader)    
 
 
 
@@ -95,7 +126,7 @@ if __name__ == '__main__':
     parent_parser.add_argument(
         '--distributed_backend',
         type=str,
-        default='dp',
+        default='ddp',
         help='supports three options dp, ddp, ddp2'
     )
     parent_parser.add_argument(
