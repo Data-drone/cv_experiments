@@ -19,11 +19,25 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torchvision.datasets import ImageFolder
 
+import albumentations as A
+from PIL import Image
 #from lr_schedulers.onecyclelr import OneCycleLR
 
 SEED = 2334
 torch.manual_seed(SEED)
 np.random.seed(SEED)
+
+class AlbumentationTransform(object):
+    def __call__(self, img):
+        aug = A.Compose([
+            A.Resize(200, 300),
+            A.CenterCrop(100, 100),
+            A.RandomCrop(80, 80),
+            A.HorizontalFlip(p=0.5),
+            A.Rotate(limit=(-90, 90)),
+            A.VerticalFlip(p=0.5)
+        ])
+        return Image.fromarray(aug(image=np.array(img))['image'])
 
 
 class DictLogger(LightningLoggerBase):
@@ -81,7 +95,7 @@ def main(hparams, logger):
     # Move data loaders out so that the lightning model can be generic
     # ------------------------
 
-    data_transform = transforms.Compose([
+    data_transform_normal = transforms.Compose([
             transforms.Resize((300,300)),
             transforms.CenterCrop((100, 100)),
             transforms.RandomCrop((80, 80)),
@@ -90,15 +104,22 @@ def main(hparams, logger):
             transforms.RandomVerticalFlip(p=0.5),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    ])
+        
+
+    data_transform = transforms.Compose([
+            AlbumentationTransform(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
 
     train_data = ImageFolder(
-        root=os.path.join('../cv_data/cifar100', 'train'),
+        root=os.path.join('../cv_data/cifar10', 'train'),
         transform = data_transform
     )
 
     val_data = ImageFolder(
-        root=os.path.join('../cv_data/cifar100', 'test'),
+        root=os.path.join('../cv_data/cifar10', 'test'),
         transform = data_transform
     )
 
