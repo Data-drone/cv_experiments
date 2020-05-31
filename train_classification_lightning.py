@@ -17,7 +17,6 @@ from models.lightning_classification import LightningModel
 
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-
 from torchvision.datasets import ImageFolder
 
 #from lr_schedulers.onecyclelr import OneCycleLR
@@ -82,17 +81,24 @@ def main(hparams, logger):
     # Move data loaders out so that the lightning model can be generic
     # ------------------------
 
-    data_transform = transforms.Compose(
-            [transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    data_transform = transforms.Compose([
+            transforms.Resize((300,300)),
+            transforms.CenterCrop((100, 100)),
+            transforms.RandomCrop((80, 80)),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomRotation(degrees=(-90, 90)),
+            transforms.RandomVerticalFlip(p=0.5),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
 
     train_data = ImageFolder(
-        root=os.path.join('../cv_data/cifar10', 'train'),
+        root=os.path.join('../cv_data/cifar100', 'train'),
         transform = data_transform
     )
 
     val_data = ImageFolder(
-        root=os.path.join('../cv_data/cifar10', 'test'),
+        root=os.path.join('../cv_data/cifar100', 'test'),
         transform = data_transform
     )
 
