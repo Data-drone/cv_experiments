@@ -154,9 +154,9 @@ class LightningModel(LightningModule):
 
         return [optimizer], [schedule]
 
-    
+    """    
     def prepare_data(self):
-        # TODO fix this one
+        
         transform = transforms.Compose(
             [transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
@@ -176,6 +176,7 @@ class LightningModel(LightningModule):
     def test_dataloader(self):
         log.info('Test data loader called.')
         return DataLoader(self.test_data, batch_size=self.hparams.batch_size, num_workers=self.hparams.nworkers)
+    """
 
     @staticmethod
     def add_model_specific_args(parent_parser):  # pragma: no-cover
