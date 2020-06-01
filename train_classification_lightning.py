@@ -113,13 +113,17 @@ def main(hparams, logger):
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
 
+    cifar10 = '../cv_data/cifar10' # train / test folders
+    cifar100 = '../cv_data/cifar100' # train / test folders
+    imagenet = '../external_data/ImageNet/ILSVRC2012_img_' # + train / test
+
     train_data = ImageFolder(
-        root=os.path.join('../cv_data/cifar10', 'train'),
+        root='../external_data/ImageNet/ILSVRC2012_img_' + 'train',
         transform = data_transform
     )
 
     val_data = ImageFolder(
-        root=os.path.join('../cv_data/cifar10', 'test'),
+        root='../external_data/ImageNet/ILSVRC2012_img_' + 'val',
         transform = data_transform
     )
 
