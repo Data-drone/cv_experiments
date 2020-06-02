@@ -113,18 +113,23 @@ def main(hparams, logger):
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
 
+    val_data_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+
     cifar10 = '../cv_data/cifar10' # train / test folders
     cifar100 = '../cv_data/cifar100' # train / test folders
-    imagenet = '../external_data/ImageNet/ILSVRC2012_img_' # + train / test
+    imagenet = '../external_data/ImageNet/ILSVRC2012_img_' # + train / val
 
     train_data = ImageFolder(
-        root='../external_data/ImageNet/ILSVRC2012_img_' + 'train',
+        root=os.path.join(cifar100, 'train'),
         transform = data_transform
     )
 
     val_data = ImageFolder(
-        root='../external_data/ImageNet/ILSVRC2012_img_' + 'val',
-        transform = data_transform
+        root=os.path.join(cifar100, 'test'),
+        transform = val_data_transform
     )
 
     train_loader = DataLoader(train_data, batch_size=hparams.batch_size, num_workers=hparams.nworkers)
@@ -143,7 +148,7 @@ def main(hparams, logger):
     early_stop_callback = pl.callbacks.EarlyStopping(
         monitor='val_loss',
         min_delta=0.00,
-        patience=3,
+        patience=15,
         verbose=True,
         mode='min'
     )
@@ -158,8 +163,9 @@ def main(hparams, logger):
         gpus=hparams.gpus,
         distributed_backend=hparams.distributed_backend,
         precision=16 if hparams.use_16bit else 32,
+        min_epochs=50,
         #callbacks = [metrics_callback],
-        #early_stop_callback=early_stop_callback,
+        early_stop_callback=early_stop_callback,
         logger=[logger, additional_logger]
     )
 
@@ -194,7 +200,7 @@ if __name__ == '__main__':
     parent_parser.add_argument(
         '--distributed_backend',
         type=str,
-        default='dp',
+        default='ddp',
         help='supports three options dp, ddp, ddp2'
     )
     parent_parser.add_argument(

@@ -1,7 +1,3 @@
-imageio==2.4.1
-numpy==1.16.4
-nvidia-dali==0.10.0
-opencv==4.0.0
-pytorch==1.1.0
-torchvision==0.3.0
-wandb==0.8.5
+wandb==0.8.36
+pytorch-lightning==0.7.6
+imgaug==0.2.6
