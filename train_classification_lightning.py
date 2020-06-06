@@ -146,7 +146,7 @@ def main(hparams, logger):
     # -------
 
     early_stop_callback = pl.callbacks.EarlyStopping(
-        monitor='val_loss',
+        monitor='val_acc',
         min_delta=0.00,
         patience=15,
         verbose=True,

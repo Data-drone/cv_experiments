@@ -108,13 +108,13 @@ class LightningModel(LightningModule):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         val_acc = sum([x['n_correct_pred'] for x in outputs]) / sum(x['n_pred'] for x in outputs)
         tensorboard_logs = {'val_loss': avg_loss, 'val_acc': val_acc}
-        return {'val_loss': avg_loss, 'log': tensorboard_logs}
+        return {'val_loss': avg_loss, 'val_acc': val_acc, 'log': tensorboard_logs}
 
     def test_epoch_end(self, outputs):
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         test_acc = sum([x['n_correct_pred'] for x in outputs]) / sum(x['n_pred'] for x in outputs)
         tensorboard_logs = {'test_loss': avg_loss, 'test_acc': test_acc}
-        return {'test_loss': avg_loss, 'log': tensorboard_logs}
+        return {'test_loss': avg_loss, 'test_acc': test_acc, 'log': tensorboard_logs}
 
     #
     # TRAINING SETUP SECTIONS
@@ -153,30 +153,6 @@ class LightningModel(LightningModule):
         schedule = {'scheduler': scheduler, 'interval': 'epoch'}
 
         return [optimizer], [schedule]
-
-    """    
-    def prepare_data(self):
-        
-        transform = transforms.Compose(
-            [transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-        self.train_data = torchvision.datasets.CIFAR10(root='../cv_data', train=True,
-                                        download=True, transform=transform)
-        self.test_data = torchvision.datasets.CIFAR10(root='../cv_data', train=True,
-                                        download=True, transform=transform)
-
-    def train_dataloader(self):
-        log.info('Training data loader called.')
-        return DataLoader(self.train_data, batch_size=self.hparams.batch_size, num_workers=self.hparams.nworkers)
-
-    def val_dataloader(self):
-        log.info('Validation data loader called.')
-        return DataLoader(self.test_data, batch_size=self.hparams.batch_size, num_workers=self.hparams.nworkers)
-
-    def test_dataloader(self):
-        log.info('Test data loader called.')
-        return DataLoader(self.test_data, batch_size=self.hparams.batch_size, num_workers=self.hparams.nworkers)
-    """
 
     @staticmethod
     def add_model_specific_args(parent_parser):  # pragma: no-cover
