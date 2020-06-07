@@ -169,7 +169,7 @@ def main(hparams, logger):
         precision=16 if hparams.use_16bit else 32,
         min_epochs=50,
         accumulate_grad_batches = 2,
-        callbacks = [save_checkpint_callback],
+        checkpoint_callback = save_checkpint_callback,
         early_stop_callback=early_stop_callback,
         logger=[logger, additional_logger]
     )
