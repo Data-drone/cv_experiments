@@ -10,6 +10,7 @@ import torch
 
 import pytorch_lightning as pl
 from pytorch_lightning import Callback
+from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.logging import LightningLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
 
@@ -73,7 +74,6 @@ class DictLogger(LightningLoggerBase):
             params: :class:`~argparse.Namespace` containing the hyperparameters
         """
 
-    
 class MetricsCallback(Callback):
     """PyTorch Lightning metric callback."""
 
@@ -153,6 +153,10 @@ def main(hparams, logger):
         mode='min'
     )
 
+    save_checkpint_callback = ModelCheckpoint(
+        filepah = 'model/{epoch}-{val_loss:.2f}'
+    )
+
     metrics_callback = MetricsCallback()
     additional_logger = DictLogger('1')
     # ------------------------
@@ -164,7 +168,8 @@ def main(hparams, logger):
         distributed_backend=hparams.distributed_backend,
         precision=16 if hparams.use_16bit else 32,
         min_epochs=50,
-        #callbacks = [metrics_callback],
+        accumulate_grad_batches = 2,
+        callbacks = [save_checkpint_callback],
         early_stop_callback=early_stop_callback,
         logger=[logger, additional_logger]
     )
