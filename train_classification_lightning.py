@@ -154,7 +154,7 @@ def main(hparams, logger):
     )
 
     save_checkpint_callback = ModelCheckpoint(
-        filepah = 'model/{epoch}-{val_loss:.2f}'
+        filepath = 'model/{epoch}-{val_loss:.2f}'
     )
 
     metrics_callback = MetricsCallback()
