@@ -154,7 +154,10 @@ def main(hparams, logger):
     )
 
     save_checkpint_callback = ModelCheckpoint(
-        filepath = 'model/{epoch}-{val_loss:.2f}'
+        monitor='val_acc',
+        filepath = 'saved_model/{epoch}-{val_acc:.2f}',
+        save_top_k = 2,
+        mode='max'
     )
 
     metrics_callback = MetricsCallback()
@@ -168,7 +171,7 @@ def main(hparams, logger):
         distributed_backend=hparams.distributed_backend,
         precision=16 if hparams.use_16bit else 32,
         min_epochs=50,
-        accumulate_grad_batches = 2,
+        accumulate_grad_batches = 1,
         checkpoint_callback = save_checkpint_callback,
         early_stop_callback=early_stop_callback,
         logger=[logger, additional_logger]
