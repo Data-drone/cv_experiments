@@ -3,3 +3,6 @@ from .optimised_resnet import *
 from .se_resnet import *
 from .attention_resnet import *
 from .wide_resnet import *
+
+# TODO
+# Larger Opt Resnets and activation types flag
