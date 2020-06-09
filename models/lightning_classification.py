@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import torchvision
 import torchvision.transforms as transforms
@@ -51,10 +52,12 @@ class LightningModel(LightningModule):
         # initiate model
         print("=> creating new model '{}'".format(self.hparams.model))
         if self.hparams.model in model_names:
-            cv_model = models.__dict__[self.hparams.model](pretrained=False)
+            cv_model = models.__dict__[self.hparams.model](pretrained=False,
+                                                num_classes=self.hparams.num_classes)
         elif self.hparams.model in local_model_names:
             cv_model = local_models.__dict__[self.hparams.model](pretrained=False,
-                                                        activation=self.act_funct)
+                                                        activation=self.act_funct,
+                                                    num_classes=self.hparams.num_classes)
 
         if self.hparams.model == 'inception_v3':
             cv_model.aux_logits=False
@@ -75,6 +78,10 @@ class LightningModel(LightningModule):
         # forward pass
         x, y = batch
         y_hat = self(x)
+
+        #print('target = {0}'.format(y.shape))
+        #print('predictions = {0}'.format(y_hat.shape))
+
         loss = self.criterion(y_hat, y) # this is the criterion
         tensorboard_logs = {'train_loss': loss}
         #print(type(loss))
@@ -178,6 +185,11 @@ class LightningModel(LightningModule):
                             type=str,
                             default='sgd',
                             choices=['sgd', 'adam', 'adamw', 'radam', 'ranger'])
+
+        parser.add_argument('--num-classes',
+                            type=int,
+                            default=100,
+                            help='number of classes in classification train')
 
 
         return parser

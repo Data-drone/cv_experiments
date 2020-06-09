@@ -132,8 +132,10 @@ def main(hparams, logger):
         transform = val_data_transform
     )
 
-    train_loader = DataLoader(train_data, batch_size=hparams.batch_size, num_workers=hparams.nworkers)
-    val_loader = DataLoader(val_data, batch_size=hparams.batch_size, num_workers=hparams.nworkers)
+    train_loader = DataLoader(train_data, batch_size=hparams.batch_size, 
+                                num_workers=hparams.nworkers)
+    val_loader = DataLoader(val_data, batch_size=hparams.batch_size, 
+                                num_workers=hparams.nworkers)
 
     # ------------------------
     # 1 INIT LIGHTNING MODEL
@@ -154,10 +156,11 @@ def main(hparams, logger):
     )
 
     save_checkpint_callback = ModelCheckpoint(
-        monitor='val_acc',
-        filepath = 'saved_model/{epoch}-{val_acc:.2f}',
-        save_top_k = 2,
-        mode='max'
+        monitor='val_loss',
+        filepath = 'saved_model/{epoch}-{val_loss:.2f}-{val_acc:.2f}',
+        save_top_k = 3,
+        mode='min',
+        verbose=True
     )
 
     metrics_callback = MetricsCallback()
@@ -219,7 +222,7 @@ if __name__ == '__main__':
     )
 
 
-    parent_parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
+    parent_parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
                     metavar='LR', help='Initial learning rate.  Will be scaled by <global batch size>/256: args.lr = args.lr*float(args.batch_size*args.world_size)/256.  A warmup schedule will also be applied over the first 5 epochs.')
     parent_parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
