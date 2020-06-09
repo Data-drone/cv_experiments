@@ -174,7 +174,7 @@ class LightningModel(LightningModule):
                             type=str,
                             default='relu',
                             choices = ['relu', 'swish', 'mish'],
-                            help='enter a valid model name')
+                            help='enter a valid model name (currently only works for certain models)')
 
         parser.add_argument('--model',
                             type=str,
