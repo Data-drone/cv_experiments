@@ -95,6 +95,18 @@ def main(hparams, logger):
     # Move data loaders out so that the lightning model can be generic
     # ------------------------
 
+    mean = {
+        'cifar10': (0.4914, 0.4822, 0.4465),
+        'cifar100': (0.5071, 0.4867, 0.4408),
+        'imagenet': (0.485, 0.456, 0.406)
+    }
+
+    std = {
+        'cifar10': (0.2023, 0.1994, 0.2010),
+        'cifar100': (0.2675, 0.2565, 0.2761),
+        'imagenet': (0.229, 0.224, 0.225)
+    }
+
     data_transform_normal = transforms.Compose([
             transforms.Resize((300,300)),
             transforms.CenterCrop((100, 100)),
@@ -103,19 +115,19 @@ def main(hparams, logger):
             transforms.RandomRotation(degrees=(-90, 90)),
             transforms.RandomVerticalFlip(p=0.5),
             transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+            transforms.Normalize(mean['cifar100'], std['cifar100'])
     ])
         
 
     data_transform = transforms.Compose([
             AlbumentationTransform(),
             transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+            transforms.Normalize(mean['cifar100'], std['cifar100'])
         ])
 
     val_data_transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+            transforms.Normalize(mean['cifar100'], std['cifar100'])
         ])
 
     cifar10 = '../cv_data/cifar10' # train / test folders
@@ -124,7 +136,7 @@ def main(hparams, logger):
 
     train_data = ImageFolder(
         root=os.path.join(cifar100, 'train'),
-        transform = data_transform
+        transform = val_data_transform
     )
 
     val_data = ImageFolder(
