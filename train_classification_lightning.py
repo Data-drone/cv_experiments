@@ -167,9 +167,11 @@ def main(hparams, logger):
         mode='min'
     )
 
+    name = '{0}_{1}_cifar100-'.format(hparams.model, hparams.opt)
+
     save_checkpint_callback = ModelCheckpoint(
         monitor='val_loss',
-        filepath = 'saved_model/{epoch}-{val_loss:.2f}-{val_acc:.2f}',
+        filepath = 'saved_model/' + name + '{epoch}-{val_loss:.2f}-{val_acc:.2f}',
         save_top_k = 3,
         mode='min',
         verbose=True
