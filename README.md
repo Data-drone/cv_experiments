@@ -8,6 +8,7 @@ A repo for experimenting in Computer Vision
 * Torchvision 0.6.0
 * Nvidia Dali 0.21.0
 * Weights and Biases Library
+* PyTorch Lightining
 
 # Notes
 
@@ -18,4 +19,5 @@ Main entry point is via the train_xxx scripts
 
 # ToDo
 
-Test Hyperparam tuning and Lightning Package
+Test Hyperparam Tuning
+Incorporate some Viewing results notebooks for trained models
