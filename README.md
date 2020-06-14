@@ -1,6 +1,7 @@
 # CV Experiments
 
-A repo for experimenting in Computer Vision
+A repo for experimenting in Computer Vision.
+Currently mostly covers classification with a little bit of detection.
 
 # Requirements
 
@@ -9,6 +10,7 @@ A repo for experimenting in Computer Vision
 * Nvidia Dali 0.21.0
 * Weights and Biases Library
 * PyTorch Lightining
+* Ablumentations
 
 # Notes
 
