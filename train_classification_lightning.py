@@ -235,6 +235,9 @@ if __name__ == '__main__':
         help='if true uses 16 bit precision'
     )
 
+    # should I have this for saving configs and models?
+    #parent_parser.add_argument('--runname', 'runtest', type=str)
+
 
     parent_parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
                     metavar='LR', help='Initial learning rate.  Will be scaled by <global batch size>/256: args.lr = args.lr*float(args.batch_size*args.world_size)/256.  A warmup schedule will also be applied over the first 5 epochs.')
@@ -249,9 +252,19 @@ if __name__ == '__main__':
     hyperparams = parser.parse_args()
 
     # ---------------------
+    # SAVING PARAMS
+    # ---------------------
+
+    import json
+    with open('saved_model/save.json', 'w') as fp:
+        json.dump(vars(hyperparams), fp)
+
+
+    # ---------------------
     # RUN TRAINING
     # ---------------------
     result = main(hyperparams, logger)
+
 
     # doesn't work
     #print(trained_model.test_result())
