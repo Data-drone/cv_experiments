@@ -21,18 +21,4 @@ for folder in dirs:
     results = pool.map(clean_file, file_list)
     pool.close()  # 'TERM'
     pool.join() 
-
-    #print(len(file_list))
-    
-    #print(file_list[:2])
-
-
-
-    """
-    for filename in glob.iglob(folder, recursive=True):
-        nfiles = nfiles + 1
-        print("About to process file %d, which is %s." % (nfiles,filename))
-        piexif.remove(filename)
-
-    """
     
