@@ -84,6 +84,39 @@ class MetricsCallback(Callback):
     def on_validation_end(self, trainer, pl_module):
         self.metrics.append(trainer.callback_metrics)
 
+def choose_dataset(dataset_flag):
+
+    mean_list = {
+        'cifar10': (0.4914, 0.4822, 0.4465),
+        'cifar100': (0.5071, 0.4867, 0.4408),
+        'imagenet': (0.485, 0.456, 0.406)
+    }
+
+    std_list = {
+        'cifar10': (0.2023, 0.1994, 0.2010),
+        'cifar100': (0.2675, 0.2565, 0.2761),
+        'imagenet': (0.229, 0.224, 0.225)
+    }
+
+    train_list = {
+        'cifar10': '../cv_data/cifar10/train',
+        'cifar100': '../cv_data/cifar100/train',
+        'imagenet': '../external_data/ImageNet/ILSVRC2012_img_train'
+    }
+
+    val_list = {
+        'cifar10': '../cv_data/cifar10/test',
+        'cifar100': '../cv_data/cifar100/test',
+        'imagenet': '../external_data/ImageNet/ILSVRC2012_img_val'
+    }
+
+    mean = mean_list[dataset_flag]
+    std = std_list[dataset_flag]
+    traindir = train_list[dataset_flag]
+    valdir = val_list[dataset_flag] 
+
+    return mean, std, traindir, valdir
+
 
 def main(hparams, logger):
     """
@@ -95,17 +128,7 @@ def main(hparams, logger):
     # Move data loaders out so that the lightning model can be generic
     # ------------------------
 
-    mean = {
-        'cifar10': (0.4914, 0.4822, 0.4465),
-        'cifar100': (0.5071, 0.4867, 0.4408),
-        'imagenet': (0.485, 0.456, 0.406)
-    }
-
-    std = {
-        'cifar10': (0.2023, 0.1994, 0.2010),
-        'cifar100': (0.2675, 0.2565, 0.2761),
-        'imagenet': (0.229, 0.224, 0.225)
-    }
+    mean, std, traindir, valdir = choose_dataset('cifar100')
 
     data_transform_normal = transforms.Compose([
             transforms.Resize((300,300)),
@@ -115,32 +138,32 @@ def main(hparams, logger):
             transforms.RandomRotation(degrees=(-90, 90)),
             transforms.RandomVerticalFlip(p=0.5),
             transforms.ToTensor(),
-            transforms.Normalize(mean['cifar100'], std['cifar100'])
+            transforms.Normalize(mean, std)
     ])
         
 
     data_transform = transforms.Compose([
             AlbumentationTransform(),
             transforms.ToTensor(),
-            transforms.Normalize(mean['cifar100'], std['cifar100'])
+            transforms.Normalize(mean, std)
         ])
 
     val_data_transform = transforms.Compose([
+            transforms.Resize((300,300)),
             transforms.ToTensor(),
-            transforms.Normalize(mean['cifar100'], std['cifar100'])
+            transforms.Normalize(mean, std)
         ])
 
-    cifar10 = '../cv_data/cifar10' # train / test folders
-    cifar100 = '../cv_data/cifar100' # train / test folders
-    imagenet = '../external_data/ImageNet/ILSVRC2012_img_' # + train / val
-
+    
     train_data = ImageFolder(
-        root=os.path.join(cifar100, 'train'),
-        transform = val_data_transform
+        #root=os.path.join(cifar100, 'train'),
+        root=traindir,
+        transform = data_transform_normal
     )
 
     val_data = ImageFolder(
-        root=os.path.join(cifar100, 'test'),
+        #root=os.path.join(cifar100, 'test'),
+        root=valdir,
         transform = val_data_transform
     )
 
@@ -250,15 +273,6 @@ if __name__ == '__main__':
     # each LightningModule defines arguments relevant to it
     parser = LightningModel.add_model_specific_args(parent_parser)
     hyperparams = parser.parse_args()
-
-    # ---------------------
-    # SAVING PARAMS
-    # ---------------------
-
-    import json
-    with open('saved_model/save.json', 'w') as fp:
-        json.dump(vars(hyperparams), fp)
-
 
     # ---------------------
     # RUN TRAINING

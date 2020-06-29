@@ -65,6 +65,8 @@ class LightningModel(LightningModule):
         self.model = cv_model
         self.criterion = nn.CrossEntropyLoss()
 
+        self.save_hyperparameters()
+        
 
     def forward(self, x):
 
