@@ -11,7 +11,7 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-from pytorch_lightning.logging import LightningLoggerBase
+from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
 
 from models.lightning_classification import LightningModel
@@ -128,6 +128,7 @@ def main(hparams, logger):
     # Move data loaders out so that the lightning model can be generic
     # ------------------------
 
+    # cifar10 cifar100 imagenet
     mean, std, traindir, valdir = choose_dataset('cifar100')
 
     data_transform_normal = transforms.Compose([
@@ -201,7 +202,8 @@ def main(hparams, logger):
     )
 
     metrics_callback = MetricsCallback()
-    additional_logger = DictLogger('1')
+    #additional_logger = DictLogger('1')
+    #self.log('1')
     # ------------------------
     # 2 INIT TRAINER
     # ------------------------
@@ -213,8 +215,8 @@ def main(hparams, logger):
         min_epochs=50,
         accumulate_grad_batches = 1,
         checkpoint_callback = save_checkpint_callback,
-        early_stop_callback=early_stop_callback,
-        logger=[logger, additional_logger]
+        callbacks=[early_stop_callback],
+        logger=[logger] # , additional_logger
     )
 
     # ------------------------
@@ -223,7 +225,7 @@ def main(hparams, logger):
     trainer.fit(model, train_dataloader = train_loader,
                         val_dataloaders = val_loader)
 
-    return additional_logger #.metrics[-1]["val_loss"]
+    #return additional_logger #.metrics[-1]["val_loss"]
 
 
 if __name__ == '__main__':
@@ -234,7 +236,7 @@ if __name__ == '__main__':
 
     #root_dir = os.path.dirname(os.path.realpath(__file__))
     #wandb_logger = WandbLogger(project='lightning_test')
-    logger = TensorBoardLogger("tb_logs", name="cv_exp")
+    tb_logger = TensorBoardLogger("tb_logs", name="cv_exp")
 
     parent_parser = ArgumentParser(add_help=False)
 
@@ -277,8 +279,4 @@ if __name__ == '__main__':
     # ---------------------
     # RUN TRAINING
     # ---------------------
-    result = main(hyperparams, logger)
-
-
-    # doesn't work
-    #print(trained_model.test_result())
+    result = main(hyperparams, tb_logger)

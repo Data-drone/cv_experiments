@@ -1,3 +1,13 @@
+# logging folders
+cv_exp_optuna/*
+tb_logs/*
+lightning_logs/*
+lightning_test/*
+log_models/*
+saved_model/*
+wandb/*
+__*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
