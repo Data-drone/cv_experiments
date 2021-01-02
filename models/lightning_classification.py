@@ -11,6 +11,7 @@ import torchvision.transforms as transforms
 import torchvision.models as models
 import models as local_models
 from models.layer_utils import Swish, Mish
+import numpy as np
 
 import optimisers as local_optimisers
 
@@ -85,9 +86,11 @@ class LightningModel(LightningModule):
         #print('predictions = {0}'.format(y_hat.shape))
 
         loss = self.criterion(y_hat, y) # this is the criterion
-        tensorboard_logs = {'train_loss': loss}
         #print(type(loss))
-        return {'loss': loss, 'log': tensorboard_logs}
+        # pre 1.0
+        #return {'loss': loss, 'log': tensorboard_logs}
+        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        return loss
 
     def validation_step(self, batch, batch_idx):
         """
@@ -99,6 +102,10 @@ class LightningModel(LightningModule):
         val_loss = self.criterion(y_hat, y) # this is the criterion
         labels_hat = torch.argmax(y_hat, dim=1)
         n_correct_pred = torch.sum(y == labels_hat).item()
+        
+        metrics = {'val_loss': val_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
+        self.log_dict(metrics)
+        
         return {'val_loss': val_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
 
     def test_step(self, batch, batch_idx):
@@ -107,23 +114,45 @@ class LightningModel(LightningModule):
         test_loss = self.criterion(y_hat, y) # this is the criterion
         labels_hat = torch.argmax(y_hat, dim=1)
         n_correct_pred = torch.sum(y == labels_hat).item()
-        return {'test_loss': test_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
+        metrics = {'test_loss': test_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
+        self.log_dict(metrics)
+        #return {'test_loss': test_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
 
-    def validation_epoch_end(self, outputs):
-        """
-        Called at the end of validation to aggregate outputs.
-        :param outputs: list of individual outputs of each validation step.
-        """
-        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        val_acc = sum([x['n_correct_pred'] for x in outputs]) / sum(x['n_pred'] for x in outputs)
+    def validation_epoch_end(self, validation_step_outputs):
+        
+        avg_loss = torch.stack([x['val_loss'] for x in validation_step_outputs]).mean()
+        val_acc = sum([x['n_correct_pred'] for x in validation_step_outputs]) / sum(x['n_pred'] for x in validation_step_outputs)
+        #val_acc = sum(corr_pred)/(len(validation_step_outputs) * self.hparams.batch_size) 
         tensorboard_logs = {'val_loss': avg_loss, 'val_acc': val_acc}
-        return {'val_loss': avg_loss, 'val_acc': val_acc, 'log': tensorboard_logs}
+        metrics = {'val_loss': avg_loss, 'val_acc': val_acc, 'log': tensorboard_logs}
+        self.log_dict(metrics)
+        
+    # need to restructure for 1.1.2
+    #def validation_epoch_end(self, outputs):
+    #    """
+    #    Called at the end of validation to aggregate outputs.
+    #    :param outputs: list of individual outputs of each validation step.
+    #    """
+    #    #avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+    #    #val_acc = sum([x['n_correct_pred'] for x in outputs]) / sum(x['n_pred'] for x in outputs)
+    #    tensorboard_logs = {'val_loss': avg_loss, 'val_acc': val_acc}
+    #    metrics = {'val_loss': avg_loss, 'val_acc': val_acc, 'log': tensorboard_logs}
+    #    self.log_dict(metrics)
+    #    #return {'val_loss': avg_loss, 'val_acc': val_acc, 'log': tensorboard_logs}
 
     def test_epoch_end(self, outputs):
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         test_acc = sum([x['n_correct_pred'] for x in outputs]) / sum(x['n_pred'] for x in outputs)
-        tensorboard_logs = {'test_loss': avg_loss, 'test_acc': test_acc}
-        return {'test_loss': avg_loss, 'test_acc': test_acc, 'log': tensorboard_logs}
+        
+
+    #def test_epoch_end(self, outputs):
+    #    avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
+    #    test_acc = sum([x['n_correct_pred'] for x in outputs]) / sum(x['n_pred'] for x in outputs)
+    #    tensorboard_logs = {'test_loss': avg_loss, 'test_acc': test_acc}
+    #    metrics = {'test_loss': avg_loss, 'test_acc': test_acc, 'log': tensorboard_logs}
+    #    self.log_dict(metrics)
+    #    #return {'test_loss': avg_loss, 'test_acc': test_acc, 'log': tensorboard_logs}
+
 
     #
     # TRAINING SETUP SECTIONS
