@@ -103,7 +103,8 @@ class LightningModel(LightningModule):
         labels_hat = torch.argmax(y_hat, dim=1)
         n_correct_pred = torch.sum(y == labels_hat).item()
         
-        metrics = {'val_loss': val_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
+        self.log('val_loss', val_loss, on_step=True, on_epoch=True, sync_dist=True)
+        metrics = {"n_correct_pred": n_correct_pred, "n_pred": len(x)}
         self.log_dict(metrics)
         
         return {'val_loss': val_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
@@ -114,9 +115,11 @@ class LightningModel(LightningModule):
         test_loss = self.criterion(y_hat, y) # this is the criterion
         labels_hat = torch.argmax(y_hat, dim=1)
         n_correct_pred = torch.sum(y == labels_hat).item()
+        self.log('test_loss', test_loss, on_step=True, on_epoch=True, sync_dist=True)
         metrics = {'test_loss': test_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
         self.log_dict(metrics)
-        #return {'test_loss': test_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
+        
+        return {'test_loss': test_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
 
     def validation_epoch_end(self, validation_step_outputs):
         
@@ -125,7 +128,7 @@ class LightningModel(LightningModule):
         #val_acc = sum(corr_pred)/(len(validation_step_outputs) * self.hparams.batch_size) 
         tensorboard_logs = {'val_loss': avg_loss, 'val_acc': val_acc}
         metrics = {'val_loss': avg_loss, 'val_acc': val_acc, 'log': tensorboard_logs}
-        self.log_dict(metrics)
+        self.log_dict(metrics, logger=True)
         
     # need to restructure for 1.1.2
     #def validation_epoch_end(self, outputs):
@@ -143,7 +146,8 @@ class LightningModel(LightningModule):
     def test_epoch_end(self, outputs):
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         test_acc = sum([x['n_correct_pred'] for x in outputs]) / sum(x['n_pred'] for x in outputs)
-        
+        logs = {'test_loss': avg_loss, 'test_acc': test_acc}
+        self.log_dict(logs, logger=True)
 
     #def test_epoch_end(self, outputs):
     #    avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()

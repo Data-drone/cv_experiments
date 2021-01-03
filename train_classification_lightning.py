@@ -28,6 +28,7 @@ SEED = 2334
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
+
 class AlbumentationTransform(object):
     def __call__(self, img):
         aug = A.Compose([
@@ -173,6 +174,9 @@ def main(hparams, logger):
     val_loader = DataLoader(val_data, batch_size=hparams.batch_size, 
                                 num_workers=hparams.nworkers)
 
+    from data_pipeline.lightning_dali_loaders import PLDaliPipe
+    dali_pipe = PLDaliPipe(hparams, traindir, valdir)
+
     # ------------------------
     # 1 INIT LIGHTNING MODEL
     # ------------------------
@@ -222,8 +226,8 @@ def main(hparams, logger):
     # ------------------------
     # 3 START TRAINING
     # ------------------------
-    trainer.fit(model, train_dataloader = train_loader,
-                        val_dataloaders = val_loader)
+    trainer.fit(model, dali_pipe)#train_dataloader = train_loader,
+                       #val_dataloaders = val_loader)
 
     #return additional_logger #.metrics[-1]["val_loss"]
 

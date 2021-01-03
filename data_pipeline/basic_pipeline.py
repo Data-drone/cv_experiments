@@ -65,6 +65,8 @@ class HybridTrainPipe(Pipeline):
         
         self.coin = ops.CoinFlip(probability=0.5)
 
+        self.to_int64 = ops.Cast(dtype=types.INT64, device="gpu")
+
         # add a rotate
         #self.rotate_range = ops.Uniform(range = (-7, 7)) # 7 degrees either way
         #self.rotate_coin = ops.CoinFlip(probability=0.075) # 7.5% chance
@@ -78,12 +80,15 @@ class HybridTrainPipe(Pipeline):
         #angle_range = self.rotate_range()
         #prob_rotate = self.rotate_coin()
         
-        self.jpegs, self.labels = self.input(name="Reader") # load in files
-        images = self.decode(self.jpegs) # decode
+        jpegs, labels = self.input(name="Reader") # load in files
+        labels = labels.gpu()
+        # PyTorch expects labels as INT64
+        labels = self.to_int64(labels)
+        images = self.decode(jpegs) # decode
         #images = self.rotate(images, angle=angle_range, mask=prob_rotate) # rotate
         images = self.res(images) # resize
-        output = self.cmnp(images.gpu(), mirror=rng) # crop / mirror / normalise (crop is random 50%)
-        return [output, self.labels]
+        output = self.cmnp(images.gpu(), mirror=rng) # crop / mirror / normalise (crop is random 50%)\        
+        return (output, labels)
 
 class HybridValPipe(Pipeline):
     def __init__(self, batch_size, num_threads, device_id, data_dir, crop, 
@@ -112,9 +117,14 @@ class HybridValPipe(Pipeline):
                                             mean=[0.50707516 * 255,0.48654887 * 255,0.44091784 * 255], 
                                             std=[0.26733429 * 255,0.25643846 * 255,0.27615047 * 255]) 
 
+        self.to_int64 = ops.Cast(dtype=types.INT64, device="gpu")
+
     def define_graph(self):
-        self.jpegs, self.labels = self.input(name="Reader")
-        images = self.decode(self.jpegs)
+        jpegs, labels = self.input(name="Reader")
+        labels = labels.gpu()
+        # PyTorch expects labels as INT64
+        labels = self.to_int64(labels)
+        images = self.decode(jpegs)
         images = self.res(images)
         output = self.cmnp(images)
-        return [output, self.labels]
+        return (output, labels)
