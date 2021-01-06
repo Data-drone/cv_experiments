@@ -11,79 +11,22 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
-from pytorch_lightning.loggers import LightningLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
 
 from models.lightning_classification import LightningModel
+from data_pipeline.lightning_dali_loaders import PLDaliPipe
+from data_pipeline.basic_lightning_dataloader import BasicPipe
 
-import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
-from torchvision.datasets import ImageFolder
-
-import albumentations as A
-from PIL import Image
 #from lr_schedulers.onecyclelr import OneCycleLR
 
 SEED = 2334
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
+import logging
 
-class AlbumentationTransform(object):
-    def __call__(self, img):
-        aug = A.Compose([
-            A.Resize(200, 300),
-            A.CenterCrop(100, 100),
-            A.RandomCrop(80, 80),
-            A.HorizontalFlip(p=0.5),
-            A.Rotate(limit=(-90, 90)),
-            A.VerticalFlip(p=0.5)
-        ])
-        return Image.fromarray(aug(image=np.array(img))['image'])
+train_logger = logging.getLogger(__name__ + '.mainLoop')
 
-
-class DictLogger(LightningLoggerBase):
-    """Custom logger to get metrics back"""
-
-    def __init__(self, version):
-        super(DictLogger, self).__init__()
-        self.metrics = []
-        self._version = version
-
-    @rank_zero_only
-    def log_metrics(self, metrics, step=None):
-        self.metrics.append(metrics)
-    
-    @property
-    def version(self):
-        return self._version
-
-    @property
-    def experiment(self):
-        """Return the experiment object associated with this logger."""
-
-    @property
-    def name(self):
-        """Return the experiment name."""
-        return 'optuna'
-
-    @rank_zero_only
-    def log_hyperparams(self, params):
-        """
-        Record hyperparameters.
-        Args:
-            params: :class:`~argparse.Namespace` containing the hyperparameters
-        """
-
-class MetricsCallback(Callback):
-    """PyTorch Lightning metric callback."""
-
-    def __init__(self):
-        super().__init__()
-        self.metrics = []
-
-    def on_validation_end(self, trainer, pl_module):
-        self.metrics.append(trainer.callback_metrics)
 
 def choose_dataset(dataset_flag):
 
@@ -132,50 +75,8 @@ def main(hparams, logger):
     # cifar10 cifar100 imagenet
     mean, std, traindir, valdir = choose_dataset('cifar100')
 
-    data_transform_normal = transforms.Compose([
-            transforms.Resize((300,300)),
-            transforms.CenterCrop((100, 100)),
-            transforms.RandomCrop((80, 80)),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomRotation(degrees=(-90, 90)),
-            transforms.RandomVerticalFlip(p=0.5),
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std)
-    ])
-        
+    train_logger.info('Training Directory: {0}'.format(traindir) )
 
-    data_transform = transforms.Compose([
-            AlbumentationTransform(),
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std)
-        ])
-
-    val_data_transform = transforms.Compose([
-            transforms.Resize((300,300)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std)
-        ])
-
-    
-    train_data = ImageFolder(
-        #root=os.path.join(cifar100, 'train'),
-        root=traindir,
-        transform = data_transform_normal
-    )
-
-    val_data = ImageFolder(
-        #root=os.path.join(cifar100, 'test'),
-        root=valdir,
-        transform = val_data_transform
-    )
-
-    train_loader = DataLoader(train_data, batch_size=hparams.batch_size, 
-                                num_workers=hparams.nworkers)
-    val_loader = DataLoader(val_data, batch_size=hparams.batch_size, 
-                                num_workers=hparams.nworkers)
-
-    from data_pipeline.lightning_dali_loaders import PLDaliPipe
-    dali_pipe = PLDaliPipe(hparams, traindir, valdir)
 
     # ------------------------
     # 1 INIT LIGHTNING MODEL
@@ -188,7 +89,7 @@ def main(hparams, logger):
     # -------
 
     early_stop_callback = pl.callbacks.EarlyStopping(
-        monitor='val_acc',
+        monitor='val_loss',
         min_delta=0.00,
         patience=15,
         verbose=True,
@@ -205,9 +106,7 @@ def main(hparams, logger):
         verbose=True
     )
 
-    metrics_callback = MetricsCallback()
-    #additional_logger = DictLogger('1')
-    #self.log('1')
+    
     # ------------------------
     # 2 INIT TRAINER
     # ------------------------
@@ -226,8 +125,14 @@ def main(hparams, logger):
     # ------------------------
     # 3 START TRAINING
     # ------------------------
-    trainer.fit(model, dali_pipe)#train_dataloader = train_loader,
-                       #val_dataloaders = val_loader)
+    #dali_pipe = PLDaliPipe(hparams, traindir, valdir, [*mean], [*std])
+    #trainer.fit(model, dali_pipe)
+    
+    normal_pipe = BasicPipe(hparams, traindir, valdir, mean, std)
+    trainer.fit(model, normal_pipe)
+    
+    #trainer.fit(model, train_dataloader = train_loader,
+    #                   val_dataloaders = val_loader)
 
     #return additional_logger #.metrics[-1]["val_loss"]
 
