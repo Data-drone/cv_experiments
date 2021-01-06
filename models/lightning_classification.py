@@ -92,8 +92,8 @@ class LightningModel(LightningModule):
         #print(type(loss))
         # pre 1.0
         #return {'loss': loss, 'log': tensorboard_logs}
-        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
-        self.log('train_acc', self.tr_accuracy(y_hat, y), on_step=True, logger=True)
+        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+        self.log('train_acc', self.tr_accuracy(y_hat, y), on_step=True, logger=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -104,19 +104,19 @@ class LightningModel(LightningModule):
         x, y = batch
         y_hat = self(x)
         val_loss = self.criterion(y_hat, y) # this is the criterion
-        labels_hat = torch.argmax(y_hat, dim=1)
-        n_correct_pred = torch.sum(y == labels_hat).item()
+        #labels_hat = torch.argmax(y_hat, dim=1)
+        #n_correct_pred = torch.sum(y == labels_hat).item()
         
         self.log('val_loss', val_loss, on_step=True, on_epoch=True, sync_dist=True)
-        self.log('val_acc', self.vl_accuracy(y_hat, y), on_step=True, logger=True)
+        self.log('val_acc', self.vl_accuracy(y_hat, y), on_step=True, logger=True, sync_dist=True)
 
         #return {'val_loss': val_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
 
     def training_epoch_end(self, outs):
-        self.log('train_acc_epoch', self.tr_accuracy.compute(), logger=True)
+        self.log('train_acc_epoch', self.tr_accuracy.compute(), logger=True, sync_dist=True)
 
     def validation_epoch_end(self, outs):
-        self.log('val_acc_epoch', self.vl_accuracy.compute(), logger=True)
+        self.log('val_acc_epoch', self.vl_accuracy.compute(), logger=True, sync_dist=True)
 
     #def validation_epoch_end(self, validation_step_outputs):
     #    
