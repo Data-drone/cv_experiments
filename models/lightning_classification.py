@@ -15,6 +15,7 @@ import numpy as np
 
 import optimisers as local_optimisers
 
+import pytorch_lightning as pl
 from pytorch_lightning import _logger as log
 from pytorch_lightning.core import LightningModule
 
@@ -67,7 +68,9 @@ class LightningModel(LightningModule):
         self.criterion = nn.CrossEntropyLoss()
 
         self.save_hyperparameters()
-        
+
+        self.tr_accuracy = pl.metrics.Accuracy()
+        self.vl_accuracy = pl.metrics.Accuracy()
 
     def forward(self, x):
 
@@ -90,6 +93,7 @@ class LightningModel(LightningModule):
         # pre 1.0
         #return {'loss': loss, 'log': tensorboard_logs}
         self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log('train_acc', self.tr_accuracy(y_hat, y), on_step=True, logger=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -104,10 +108,25 @@ class LightningModel(LightningModule):
         n_correct_pred = torch.sum(y == labels_hat).item()
         
         self.log('val_loss', val_loss, on_step=True, on_epoch=True, sync_dist=True)
-        metrics = {"n_correct_pred": n_correct_pred, "n_pred": len(x)}
-        self.log_dict(metrics)
-        
-        return {'val_loss': val_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
+        self.log('val_acc', self.vl_accuracy(y_hat, y), on_step=True, logger=True)
+
+        #return {'val_loss': val_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
+
+    def training_epoch_end(self, outs):
+        self.log('train_acc_epoch', self.tr_accuracy.compute(), logger=True)
+
+    def validation_epoch_end(self, outs):
+        self.log('val_acc_epoch', self.vl_accuracy.compute(), logger=True)
+
+    #def validation_epoch_end(self, validation_step_outputs):
+    #    
+    #    avg_loss = torch.stack([x['val_loss'] for x in validation_step_outputs]).mean()
+    #    val_acc = sum([x['n_correct_pred'] for x in validation_step_outputs]) / sum(x['n_pred'] for x in validation_step_outputs)
+    #    #val_acc = sum(corr_pred)/(len(validation_step_outputs) * self.hparams.batch_size) 
+    #    tensorboard_logs = {'val_loss': avg_loss, 'val_acc': val_acc}
+    #    metrics = {'val_loss': avg_loss, 'val_acc': val_acc, 'log': tensorboard_logs}
+    #    self.log_dict(metrics, logger=True)
+    
 
     def test_step(self, batch, batch_idx):
         x, y = batch
@@ -121,14 +140,13 @@ class LightningModel(LightningModule):
         
         return {'test_loss': test_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
 
-    def validation_epoch_end(self, validation_step_outputs):
-        
-        avg_loss = torch.stack([x['val_loss'] for x in validation_step_outputs]).mean()
-        val_acc = sum([x['n_correct_pred'] for x in validation_step_outputs]) / sum(x['n_pred'] for x in validation_step_outputs)
-        #val_acc = sum(corr_pred)/(len(validation_step_outputs) * self.hparams.batch_size) 
-        tensorboard_logs = {'val_loss': avg_loss, 'val_acc': val_acc}
-        metrics = {'val_loss': avg_loss, 'val_acc': val_acc, 'log': tensorboard_logs}
-        self.log_dict(metrics, logger=True)
+    def test_epoch_end(self, outputs):
+        avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
+        test_acc = sum([x['n_correct_pred'] for x in outputs]) / sum(x['n_pred'] for x in outputs)
+        logs = {'test_loss': avg_loss, 'test_acc': test_acc}
+        self.log_dict(logs, logger=True)
+
+
         
     # need to restructure for 1.1.2
     #def validation_epoch_end(self, outputs):
@@ -143,11 +161,6 @@ class LightningModel(LightningModule):
     #    self.log_dict(metrics)
     #    #return {'val_loss': avg_loss, 'val_acc': val_acc, 'log': tensorboard_logs}
 
-    def test_epoch_end(self, outputs):
-        avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
-        test_acc = sum([x['n_correct_pred'] for x in outputs]) / sum(x['n_pred'] for x in outputs)
-        logs = {'test_loss': avg_loss, 'test_acc': test_acc}
-        self.log_dict(logs, logger=True)
 
     #def test_epoch_end(self, outputs):
     #    avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
@@ -225,6 +238,5 @@ class LightningModel(LightningModule):
                             type=int,
                             default=100,
                             help='number of classes in classification train')
-
 
         return parser

@@ -1,4 +1,8 @@
-# Dali dataloaders for pytorch lightning
+# Pytorch Lightning 1.1.x dali data loader module
+# This does some random data augments and was used with cifar and imagenet data
+# Built to compare Dali with albumentations and basic torchvision transforms
+#
+
 from pytorch_lightning import LightningDataModule
 from data_pipeline.basic_pipeline import HybridTrainPipe, HybridValPipe
 from data_pipeline.lightning_pipeline import DaliTransformsTrainPipeline, DaliTransformsValPipeline

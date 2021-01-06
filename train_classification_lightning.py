@@ -54,12 +54,19 @@ def choose_dataset(dataset_flag):
         'imagenet': '../external_data/ImageNet/ILSVRC2012_img_val'
     }
 
+    num_classes = {
+        'cifar10': 10,
+        'cifar100': 100,
+        'imagenet': 1000
+    }
+
     mean = mean_list[dataset_flag]
     std = std_list[dataset_flag]
     traindir = train_list[dataset_flag]
-    valdir = val_list[dataset_flag] 
+    valdir = val_list[dataset_flag]
+    num_c = num_classes[dataset_flag] 
 
-    return mean, std, traindir, valdir
+    return mean, std, traindir, valdir, num_c
 
 
 def main(hparams, logger):
@@ -73,10 +80,10 @@ def main(hparams, logger):
     # ------------------------
 
     # cifar10 cifar100 imagenet
-    mean, std, traindir, valdir = choose_dataset('cifar100')
+    mean, std, traindir, valdir, num_classes = choose_dataset('cifar100')
+    hparams.num_classes = num_classes
 
     train_logger.info('Training Directory: {0}'.format(traindir) )
-
 
     # ------------------------
     # 1 INIT LIGHTNING MODEL
@@ -130,12 +137,6 @@ def main(hparams, logger):
     
     normal_pipe = BasicPipe(hparams, traindir, valdir, mean, std)
     trainer.fit(model, normal_pipe)
-    
-    #trainer.fit(model, train_dataloader = train_loader,
-    #                   val_dataloaders = val_loader)
-
-    #return additional_logger #.metrics[-1]["val_loss"]
-
 
 if __name__ == '__main__':
     # ------------------------

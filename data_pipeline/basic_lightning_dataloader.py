@@ -1,3 +1,8 @@
+# Pytorch Lightning 1.1.x data loader module
+# This does some random data augments and was used with cifar and imagenet data
+# Built to compare with Dali
+#
+
 from pytorch_lightning import LightningDataModule
 
 import torchvision.transforms as transforms
