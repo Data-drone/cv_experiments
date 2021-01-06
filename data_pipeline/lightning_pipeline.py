@@ -16,9 +16,11 @@ class DaliTransformsTrainPipeline(Pipeline):
         # should we make this drive the device flags?
         self.device = device
 
-        self.reader = ops.FileReader(file_root=data_dir, shard_id=shard_id, num_shards=num_shards, random_shuffle=True)
+        self.reader = ops.FileReader(file_root=data_dir, shard_id=shard_id, 
+                                        num_shards=num_shards, random_shuffle=True)
+
         self.decode = ops.ImageDecoder(device='mixed', output_type=types.RGB, memory_stats=True)
-        self.resize = ops.Resize(device='gpu', size=[200,300])
+        self.resize = ops.Resize(device='gpu', size=[200,300], interp_type=types.INTERP_TRIANGULAR)
         self.centrecrop = ops.Crop(device='gpu', crop=[100,100])
         self.randomcrop = ops.RandomResizedCrop(device='gpu', size=[80,80])
 
@@ -27,22 +29,24 @@ class DaliTransformsTrainPipeline(Pipeline):
 
         self.rotate_angle = ops.Uniform(range=[-90,90])
         self.rotate_coin = ops.CoinFlip(probability=0.5)
-        self.rotate = ops.Rotate(device='gpu')
+        self.rotate = ops.Rotate(device='gpu', keep_size=True)
         
         self.vt_coin = ops.CoinFlip(probability=0.5)
         self.verticalflip = ops.Flip(device='gpu', horizontal=0)
 
-        self.normalize = ops.Normalize(device='gpu', mean=mean, stddev=std)
+        self.normalize = ops.Normalize(device='gpu', dtype=types.FLOAT)#, mean=mean, stddev=std)
         self.to_int64 = ops.Cast(dtype=types.INT64, device="gpu")
 
 
     def define_graph(self):
+
+        # randomness variables
         hz_rng = self.hz_coin()
         rt_coin = self.rotate_coin()
-        rt_angle = self.rotate_angle() 
+        rt_angle = self.rotate_angle()
         vr_rng = self.vt_coin()
 
-        jpegs, labels = self.reader()
+        jpegs, labels = self.reader(name='Reader')
         
         labels = labels.gpu()
         # PyTorch expects labels as INT64
@@ -54,28 +58,29 @@ class DaliTransformsTrainPipeline(Pipeline):
         images = self.randomcrop(images)
         images = self.horizontalflip(images, horizontal=hz_rng)
         # We multiple the uniform dist sample with the 0/1 from the coin flip
-        images = self.rotate(angle=rt_coin*rt_angle)
+        images = self.rotate(images, angle=rt_coin*rt_angle)
         images = self.verticalflip(images, vertical=vr_rng)
         images = self.normalize(images)
         
-        return images, labels
+        return (images, labels)
 
 
 
 class DaliTransformsValPipeline(Pipeline):
     def __init__(self, batch_size, device, data_dir, mean, std, device_id=0, 
                     shard_id=0, num_shards=1, num_threads=4, seed=0):
-        super(DaliTransformsTrainPipeline, self).__init__(
+        super(DaliTransformsValPipeline, self).__init__(
             batch_size, num_threads, device_id, seed)
 
         # should we make this drive the device flags?
         self.device = device
 
-        self.reader = ops.FileReader(file_root=data_dir, shard_id=shard_id, num_shards=num_shards, random_shuffle=True)
+        self.reader = ops.FileReader(file_root=data_dir, shard_id=shard_id, 
+                                        num_shards=num_shards, random_shuffle=False)
         self.decode = ops.ImageDecoder(device='mixed', output_type=types.RGB, memory_stats=True)
-        self.resize = ops.Resize(device='gpu', size=[200,300])
+        self.resize = ops.Resize(device='gpu', size=[200,300], interp_type=types.INTERP_TRIANGULAR)
 
-        self.normalize = ops.Normalize(device='gpu', mean=mean, stddev=std)
+        self.normalize = ops.Normalize(device='gpu', dtype=types.FLOAT)#, mean=mean, stddev=std)
         self.to_int64 = ops.Cast(dtype=types.INT64, device="gpu")
 
 
@@ -91,4 +96,4 @@ class DaliTransformsValPipeline(Pipeline):
         images = self.resize(images)
         images = self.normalize(images)
         
-        return images, labels
+        return (images, labels)
