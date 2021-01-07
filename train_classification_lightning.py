@@ -96,11 +96,11 @@ def main(hparams, logger):
     # -------
 
     early_stop_callback = pl.callbacks.EarlyStopping(
-        monitor='val_loss',
+        monitor='val_acc',
         min_delta=0.00,
         patience=15,
         verbose=True,
-        mode='min'
+        mode='max'
     )
 
     name = '{0}_{1}_cifar100-'.format(hparams.model, hparams.opt)
@@ -108,9 +108,9 @@ def main(hparams, logger):
     save_checkpint_callback = ModelCheckpoint(
         monitor='val_loss',
         filepath = 'saved_model/' + name + '{epoch}-{val_loss:.2f}-{val_acc:.2f}',
-        save_top_k = 3,
+        save_top_k = 2,
         mode='min',
-        verbose=True
+        verbose=False
     )
 
     

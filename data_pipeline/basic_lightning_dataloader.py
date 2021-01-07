@@ -38,11 +38,11 @@ class BasicPipe(LightningDataModule):
 
         data_transform_normal = transforms.Compose([
             transforms.Resize((300,300)),
-            transforms.CenterCrop((100, 100)),
-            transforms.RandomCrop((80, 80)),
+            #transforms.CenterCrop((100, 100)),
+            transforms.RandomCrop((250, 250), padding=4),
             transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomRotation(degrees=(-90, 90)),
-            transforms.RandomVerticalFlip(p=0.5),
+            #transforms.RandomRotation(degrees=(-90, 90)),
+            #transforms.RandomVerticalFlip(p=0.5),
             transforms.ToTensor(),
             transforms.Normalize(mean, std)
             ])
@@ -60,7 +60,7 @@ class BasicPipe(LightningDataModule):
                 transforms.Normalize(mean, std)
             ])
 
-        self.train_transforms = data_transform
+        self.train_transforms = data_transform_normal
         self.val_transforms = val_data_transform
 
     def setup(self, stage=None):
