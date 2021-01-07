@@ -11,16 +11,13 @@ import torch
 import pytorch_lightning as pl
 
 from models.lightning_classification import LightningModel
-
-from pytorch_lightning.logging import LightningLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
 
-import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
-from torchvision.datasets import ImageFolder
+from data_pipeline.basic_lightning_dataloader import BasicPipe
 
 from ray import tune
 import ray
+from ray.tune.integration.pytorch_lightning import TuneReportCallback
 
 #from lr_schedulers.onecyclelr import OneCycleLR
 
@@ -28,9 +25,21 @@ SEED = 2334
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
-ray.init(webui_host="0.0.0.0")
+import logging
+train_logger = logging.getLogger(__name__ + '.mainLoop')
+
+# ray 1.1.0
+# CLI Command: ray start --head --dashboard-host 0.0.0.0 --dashboard-port 8787
+ray.init(address='auto')
+#, num_cpus=8, num_gpus=2, dashboard_host='0.0.0.0', dashboard_port=8787)
+
 ## TODO
 ## execute main from a jupyter and see if model.test_result gets us accuracy 
+
+from train_classification_lightning import choose_dataset
+
+def tune_main():
+    pass
 
 def main(hparams, logger):
     """
@@ -39,26 +48,12 @@ def main(hparams, logger):
     """
 
     # ------------------------
-    # Move data loaders out so that the lightning model can be generic
+    # Choose Dataset
     # ------------------------
+    mean, std, traindir, valdir, num_classes = choose_dataset('cifar10')
+    hparams.num_classes = num_classes
 
-    data_transform = transforms.Compose(
-            [transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-
-    train_data = ImageFolder(
-        root=os.path.join('../cv_data/cifar10', 'train'),
-        transform = data_transform
-    )
-
-    val_data = ImageFolder(
-        root=os.path.join('../cv_data/cifar10', 'test'),
-        transform = data_transform
-    )
-
-    train_loader = DataLoader(train_data, batch_size=hparams.batch_size, num_workers=hparams.nworkers)
-    val_loader = DataLoader(val_data, batch_size=hparams.batch_size, num_workers=hparams.nworkers)
-
+    train_logger.info('Training Directory: {0}'.format(traindir) )
 
     # ------------------------
     # 1 INIT LIGHTNING MODEL
@@ -93,9 +88,8 @@ def main(hparams, logger):
     # ------------------------
     # 3 START TRAINING
     # ------------------------
-    trainer.fit(model, train_dataloader = train_loader,
-                        val_dataloaders = val_loader)    
-
+    normal_pipe = BasicPipe(hparams, traindir, valdir, mean, std)
+    trainer.fit(model, normal_pipe)
 
 
 
@@ -156,12 +150,26 @@ if __name__ == '__main__':
     #
     # add tune
     #
+    callback = TuneReportCallback({
+        "loss": "val_loss_epoch",
+        "accuracy": "val_acc_epoch"
+    }, on="validation_end")
+
+    # tune hparam configs
+    tune_configs = {"lr": tune.grid_search([0.001, 0.01, 0.1]), 
+                            "hparams": hyperparams,
+                            "logger": logger}
+
+    scheduler = ASHAScheduler(
+        max_t=num_epochs,
+        grace_period=1,
+        reduction_factor=2)
+
+    reporter = CLIReporter(
+        parameter_columns=["lr", "batch_size"],
+        metric_columns=["loss", "mean_accuracy", "training_iteration"])
 
     analysis = tune.run(
-        tune_model, config={"lr": tune.grid_search([0.001, 0.01, 0.1]), 
-                            "hparams": hyperparams,
-                            "logger": logger},
-                            resources_per_trial={'gpu': 1,
-                                                'cpu': 4})
+        tune_model, config=tune_configs, resources_per_trial={'gpu': 1, 'cpu': 4})
 
     
