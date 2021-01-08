@@ -30,7 +30,7 @@ class BasicPipe(LightningDataModule):
     def __init__(self, hparams, train_datadir, val_datadir, mean, std):
         super().__init__()
 
-        self.hparams = hparams
+        self.hparams = vars(hparams)
         self.train_datadir=train_datadir
         self.val_datadir=val_datadir
         self.dataset_mean = mean
@@ -76,9 +76,9 @@ class BasicPipe(LightningDataModule):
         )
 
     def train_dataloader(self):
-        return DataLoader(self.train_data, batch_size=self.hparams.batch_size, 
-                                num_workers=self.hparams.nworkers)
+        return DataLoader(self.train_data, batch_size=self.hparams['batch_size'], 
+                                num_workers=self.hparams['nworkers'])
 
     def val_dataloader(self):
-        return DataLoader(self.val_data, batch_size=self.hparams.batch_size, 
-                                num_workers=self.hparams.nworkers)
+        return DataLoader(self.val_data, batch_size=self.hparams["batch_size"], 
+                                num_workers=self.hparams["nworkers"])
