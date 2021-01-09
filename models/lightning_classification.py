@@ -24,9 +24,6 @@ from learning_rate_schedulers.onecyclelr import OneCycleLR
 
 
 ## lightning wrapper around cvision
-# Need to test
-
-
 class LightningModel(LightningModule):
 
     def __init__(self, hparams):
@@ -71,6 +68,7 @@ class LightningModel(LightningModule):
 
         self.tr_accuracy = pl.metrics.Accuracy()
         self.vl_accuracy = pl.metrics.Accuracy()
+        self.test_accuracy = pl.metrics.Accuracy()
 
     def forward(self, x):
 
@@ -84,14 +82,8 @@ class LightningModel(LightningModule):
         # forward pass
         x, y = batch
         y_hat = self(x)
-
-        #print('target = {0}'.format(y.shape))
-        #print('predictions = {0}'.format(y_hat.shape))
-
         loss = self.criterion(y_hat, y) # this is the criterion
-        #print(type(loss))
-        # pre 1.0
-        #return {'loss': loss, 'log': tensorboard_logs}
+
         self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         self.log('train_acc', self.tr_accuracy(y_hat, y), on_step=True, logger=True, sync_dist=True)
         return loss
@@ -104,13 +96,9 @@ class LightningModel(LightningModule):
         x, y = batch
         y_hat = self(x)
         val_loss = self.criterion(y_hat, y) # this is the criterion
-        #labels_hat = torch.argmax(y_hat, dim=1)
-        #n_correct_pred = torch.sum(y == labels_hat).item()
         
         self.log('val_loss', val_loss, on_step=True, on_epoch=True, sync_dist=True)
         self.log('val_acc', self.vl_accuracy(y_hat, y), on_step=True, logger=True, sync_dist=True)
-
-        #return {'val_loss': val_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
 
     def training_epoch_end(self, outs):
         self.log('train_acc_epoch', self.tr_accuracy.compute(), logger=True, sync_dist=True)
@@ -118,58 +106,15 @@ class LightningModel(LightningModule):
     def validation_epoch_end(self, outs):
         self.log('val_acc_epoch', self.vl_accuracy.compute(), logger=True, sync_dist=True)
 
-    #def validation_epoch_end(self, validation_step_outputs):
-    #    
-    #    avg_loss = torch.stack([x['val_loss'] for x in validation_step_outputs]).mean()
-    #    val_acc = sum([x['n_correct_pred'] for x in validation_step_outputs]) / sum(x['n_pred'] for x in validation_step_outputs)
-    #    #val_acc = sum(corr_pred)/(len(validation_step_outputs) * self.hparams.batch_size) 
-    #    tensorboard_logs = {'val_loss': avg_loss, 'val_acc': val_acc}
-    #    metrics = {'val_loss': avg_loss, 'val_acc': val_acc, 'log': tensorboard_logs}
-    #    self.log_dict(metrics, logger=True)
-    
-
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         test_loss = self.criterion(y_hat, y) # this is the criterion
-        labels_hat = torch.argmax(y_hat, dim=1)
-        n_correct_pred = torch.sum(y == labels_hat).item()
         self.log('test_loss', test_loss, on_step=True, on_epoch=True, sync_dist=True)
-        metrics = {'test_loss': test_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
-        self.log_dict(metrics)
-        
-        return {'test_loss': test_loss, "n_correct_pred": n_correct_pred, "n_pred": len(x)}
+        self.log('test_acc', self.test_accuracy(y_hat, y), on_step=True, logger=True, sync_dist=True)
 
     def test_epoch_end(self, outputs):
-        avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
-        test_acc = sum([x['n_correct_pred'] for x in outputs]) / sum(x['n_pred'] for x in outputs)
-        logs = {'test_loss': avg_loss, 'test_acc': test_acc}
-        self.log_dict(logs, logger=True)
-
-
-        
-    # need to restructure for 1.1.2
-    #def validation_epoch_end(self, outputs):
-    #    """
-    #    Called at the end of validation to aggregate outputs.
-    #    :param outputs: list of individual outputs of each validation step.
-    #    """
-    #    #avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-    #    #val_acc = sum([x['n_correct_pred'] for x in outputs]) / sum(x['n_pred'] for x in outputs)
-    #    tensorboard_logs = {'val_loss': avg_loss, 'val_acc': val_acc}
-    #    metrics = {'val_loss': avg_loss, 'val_acc': val_acc, 'log': tensorboard_logs}
-    #    self.log_dict(metrics)
-    #    #return {'val_loss': avg_loss, 'val_acc': val_acc, 'log': tensorboard_logs}
-
-
-    #def test_epoch_end(self, outputs):
-    #    avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
-    #    test_acc = sum([x['n_correct_pred'] for x in outputs]) / sum(x['n_pred'] for x in outputs)
-    #    tensorboard_logs = {'test_loss': avg_loss, 'test_acc': test_acc}
-    #    metrics = {'test_loss': avg_loss, 'test_acc': test_acc, 'log': tensorboard_logs}
-    #    self.log_dict(metrics)
-    #    #return {'test_loss': avg_loss, 'test_acc': test_acc, 'log': tensorboard_logs}
-
+        self.log('test_acc_epoch', self.test_accuracy.compute(), logger=True, sync_dist=True)
 
     #
     # TRAINING SETUP SECTIONS
