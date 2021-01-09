@@ -9,8 +9,8 @@ import numpy as np
 import torch
 
 import pytorch_lightning as pl
-from pytorch_lightning import Callback
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
+from pytorch_lightning.callbacks import LearningRateMonitor
 from pytorch_lightning.utilities import rank_zero_only
 
 from models.lightning_classification import LightningModel
@@ -113,6 +113,8 @@ def main(hparams, logger):
         verbose=False
     )
 
+    lr_monitor = LearningRateMonitor(logging_interval='step')
+
     
     # ------------------------
     # 2 INIT TRAINER
@@ -125,7 +127,7 @@ def main(hparams, logger):
         min_epochs=50,
         accumulate_grad_batches = 1,
         checkpoint_callback = save_checkpint_callback,
-        callbacks=[early_stop_callback],
+        callbacks=[early_stop_callback, lr_monitor],
         logger=[logger] # , additional_logger
     )
 
