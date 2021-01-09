@@ -30,7 +30,7 @@ class BasicPipe(LightningDataModule):
     def __init__(self, hparams, train_datadir, val_datadir, mean, std):
         super().__init__()
 
-        self.hparams = vars(hparams) if type(hparams) is not dict
+        self.hparams = vars(hparams) if type(hparams) is not dict else hparams
         self.train_datadir=train_datadir
         self.val_datadir=val_datadir
         self.dataset_mean = mean

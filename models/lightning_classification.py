@@ -42,26 +42,26 @@ class LightningModel(LightningModule):
 
         valid_models = model_names + local_model_names
 
-        self.hparams = hparams
+        self.hparams = vars(hparams) if type(hparams) is not dict else hparams
 
-        if self.hparams.act_func == 'swish':
+        if self.hparams['act_func'] == 'swish':
             self.act_funct = Swish()
-        elif self.hparams.act_func == 'mish':
+        elif self.hparams['act_func'] == 'mish':
             self.act_funct = Mish()
-        elif self.hparams.act_func == 'relu':
+        elif self.hparams['act_func'] == 'relu':
             self.act_funct = nn.ReLU(inplace=True)
 
         # initiate model
-        print("=> creating new model '{}'".format(self.hparams.model))
-        if self.hparams.model in model_names:
-            cv_model = models.__dict__[self.hparams.model](pretrained=False,
-                                                num_classes=self.hparams.num_classes)
-        elif self.hparams.model in local_model_names:
-            cv_model = local_models.__dict__[self.hparams.model](pretrained=False,
+        print("=> creating new model '{}'".format(self.hparams['model']))
+        if self.hparams['model'] in model_names:
+            cv_model = models.__dict__[self.hparams['model']](pretrained=False,
+                                                num_classes=self.hparams['num_classes'])
+        elif self.hparams['model'] in local_model_names:
+            cv_model = local_models.__dict__[self.hparams['model']](pretrained=False,
                                                         activation=self.act_funct,
-                                                    num_classes=self.hparams.num_classes)
+                                                    num_classes=self.hparams['num_classes'])
 
-        if self.hparams.model == 'inception_v3':
+        if self.hparams['model'] == 'inception_v3':
             cv_model.aux_logits=False
 
         self.model = cv_model
@@ -178,32 +178,32 @@ class LightningModel(LightningModule):
     def configure_optimizers(self):
 
         # optimizer
-        if self.hparams.opt == 'sgd':
-            optimizer = torch.optim.SGD(self.model.parameters(), self.hparams.lr,
-                                    momentum=self.hparams.momentum,
-                                    weight_decay=self.hparams.weight_decay)
+        if self.hparams['opt'] == 'sgd':
+            optimizer = torch.optim.SGD(self.model.parameters(), self.hparams['lr'],
+                                    momentum=self.hparams['momentum'],
+                                    weight_decay=self.hparams['weight_decay'])
 
-        if self.hparams.opt == 'adam':
-            optimizer = torch.optim.Adam(self.model.parameters(), self.hparams.lr,
-                                        weight_decay=self.hparams.weight_decay)
+        if self.hparams['opt'] == 'adam':
+            optimizer = torch.optim.Adam(self.model.parameters(), self.hparams['lr'],
+                                        weight_decay=self.hparams['weight_decay'])
 
-        if self.hparams.opt == 'adamw':
-            optimizer = torch.optim.AdamW(self.model.parameters(), self.hparams.lr,
-                                        weight_decay=self.hparams.weight_decay)
+        if self.hparams['opt'] == 'adamw':
+            optimizer = torch.optim.AdamW(self.model.parameters(), self.hparams['lr'],
+                                        weight_decay=self.hparams['weight_decay'])
             
-        if self.hparams.opt == 'radam':
-            optimizer = local_optimisers.RAdam(self.model.parameters(), self.hparams.lr,
+        if self.hparams['opt'] == 'radam':
+            optimizer = local_optimisers.RAdam(self.model.parameters(), self.hparams['lr'],
                                             betas=(0.9, 0.999), eps=1e-8,
-                                            weight_decay=self.hparams.weight_decay)
+                                            weight_decay=self.hparams['weight_decay'])
 
-        if self.hparams.opt == 'ranger':
-            optimizer = local_optimisers.Ranger(self.model.parameters(), self.hparams.lr,
-                                                weight_decay=self.hparams.weight_decay)
+        if self.hparams['opt'] == 'ranger':
+            optimizer = local_optimisers.Ranger(self.model.parameters(), self.hparams['lr'],
+                                                weight_decay=self.hparams['weight_decay'])
 
         # scheduler
-        #scheduler = CyclicLR(optimizer, 0.00001, self.hparams.lr)
-        scheduler = OneCycleLR(optimizer, num_steps=int(self.hparams.epochs/2), 
-                            lr_range=(self.hparams.lr/10, self.hparams.lr))
+        #scheduler = CyclicLR(optimizer, 0.00001, self.hparams['lr'])
+        scheduler = OneCycleLR(optimizer, num_steps=int(self.hparams['epochs']/2), 
+                            lr_range=(self.hparams['lr']/10, self.hparams['lr']))
 
         schedule = {'scheduler': scheduler, 'interval': 'epoch'}
 

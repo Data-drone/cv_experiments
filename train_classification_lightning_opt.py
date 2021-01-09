@@ -14,10 +14,18 @@ from models.lightning_classification import LightningModel
 from pytorch_lightning.utilities import rank_zero_only
 
 from data_pipeline.basic_lightning_dataloader import BasicPipe
+from train_classification_lightning import choose_dataset
 
-from ray import tune
 import ray
-from ray.tune.integration.pytorch_lightning import TuneReportCallback
+import shutil
+import tempfile
+from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.utilities.cloud_io import load as pl_load
+from ray import tune
+from ray.tune import CLIReporter
+from ray.tune.schedulers import ASHAScheduler, PopulationBasedTraining
+from ray.tune.integration.pytorch_lightning import TuneReportCallback, \
+    TuneReportCheckpointCallback
 
 #from lr_schedulers.onecyclelr import OneCycleLR
 
@@ -34,69 +42,91 @@ ray.init(address='auto')
 #, num_cpus=8, num_gpus=2, dashboard_host='0.0.0.0', dashboard_port=8787)
 
 ## TODO
-## execute main from a jupyter and see if model.test_result gets us accuracy 
+## need to reorganise the hparams
+## need to rethink
+## self.hparams.num_classes is how we access a argparse variable
+## self.hparams['num_classes'] is how we access the dict object from ray
+## so we would need to move everything to receive dicts...
 
-from train_classification_lightning import choose_dataset
 
-def tune_main():
-    pass
+def tune_main(hparams, num_epochs=15, num_gpus=0):
 
-def main(hparams, logger):
-    """
-    Main training routine specific for this project
-    :param hparams:
-    """
+    print(hparams)
 
-    # ------------------------
-    # Choose Dataset
-    # ------------------------
     mean, std, traindir, valdir, num_classes = choose_dataset('cifar10')
-    hparams.num_classes = num_classes
+    traindir = '/home/jovyan/work/cv_data/cifar10/train'
+    valdir = '/home/jovyan/work/cv_data/cifar10/test'
+    hparams['num_classes'] = num_classes
 
     train_logger.info('Training Directory: {0}'.format(traindir) )
 
-    # ------------------------
-    # 1 INIT LIGHTNING MODEL
-    # ------------------------
-
     model = LightningModel(hparams)
 
-    # -------
-    # EARLY STOPPING
-    # -------
-
-    early_stop_callback = pl.callbacks.EarlyStopping(
-        monitor='val_loss',
-        min_delta=0.00,
-        patience=3,
-        verbose=True,
-        mode='min'
-    )
-
-    # ------------------------
-    # 2 INIT TRAINER
-    # ------------------------
     trainer = pl.Trainer(
-        max_epochs=hparams.epochs,
-        gpus=hparams.gpus,
-        distributed_backend=hparams.distributed_backend,
-        precision=16 if hparams.use_16bit else 32,
+        max_epochs=num_epochs,
+        gpus=num_gpus,
+        #distributed_backend=hparams.distributed_backend,
+        precision=32,
         #early_stop_callback=early_stop_callback,
-        logger=logger
-    )
+        logger=TensorBoardLogger(
+            save_dir=tune.get_trial_dir(), name="", version="."),
+        progress_bar_refresh_rate=0,
+        callbacks=[
+            TuneReportCallback(
+                {
+                    "loss": "val_loss_epoch",
+                    "accuracy": "val_acc_epoch"
+                },
+                on="validation_end"
+            )
+        ])
 
-    # ------------------------
-    # 3 START TRAINING
-    # ------------------------
     normal_pipe = BasicPipe(hparams, traindir, valdir, mean, std)
     trainer.fit(model, normal_pipe)
 
+def tune_cifar_asha(num_samples=10, num_epochs=15, gpus_per_trial=1):
+    data_dir = 'test_tune'
 
+    config = {"lr": tune.choice([0.001, 0.01, 0.1]), 
+              "act_func": "relu",
+              "model": "resnet18",
+              "opt": "ranger",
+              "epochs": num_epochs,
+              "momentum": 0.9,
+              "weight_decay": 1e-4,
+              "batch_size": 64,
+              "nworkers": 4}
 
-def tune_model(config):
+    scheduler = ASHAScheduler(
+        max_t=num_epochs,
+        grace_period=1,
+        reduction_factor=2)
 
-    main(config['hparams'], config['logger'])
+    reporter = CLIReporter(
+        parameter_columns=["lr", "act_func", "model", "opt", "epochs", "num_classes",
+                            "momentum", "weight_decay", "batch_size", "nworkers"],
+        metric_columns=["loss", "accuracy", "training_iteration"])
 
+    analysis = tune.run(
+        tune.with_parameters(
+            tune_main,
+            num_epochs=num_epochs,
+            num_gpus=gpus_per_trial),
+        resources_per_trial={
+            "cpu": 4,
+            "gpu": gpus_per_trial
+        },
+        metric="loss",
+        mode="min",
+        config=config,
+        num_samples=num_samples,
+        scheduler=scheduler,
+        progress_reporter=reporter,
+        name="tune_cifar10_asha")
+
+    print("Best hyperparameters found were: ", analysis.best_config)
+
+    #shutil.rmtree(data_dir)
 
 if __name__ == '__main__':
     # ------------------------
@@ -106,7 +136,7 @@ if __name__ == '__main__':
 
     #root_dir = os.path.dirname(os.path.realpath(__file__))
     #wandb_logger = WandbLogger(project='lightning_test')
-    logger = TensorBoardLogger("tb_logs", name="cv_exp")
+    #logger = TensorBoardLogger("tb_logs", name="cv_exp")
 
     parent_parser = ArgumentParser(add_help=False)
 
@@ -150,26 +180,7 @@ if __name__ == '__main__':
     #
     # add tune
     #
-    callback = TuneReportCallback({
-        "loss": "val_loss_epoch",
-        "accuracy": "val_acc_epoch"
-    }, on="validation_end")
-
+    
     # tune hparam configs
-    tune_configs = {"lr": tune.grid_search([0.001, 0.01, 0.1]), 
-                            "hparams": hyperparams,
-                            "logger": logger}
-
-    scheduler = ASHAScheduler(
-        max_t=num_epochs,
-        grace_period=1,
-        reduction_factor=2)
-
-    reporter = CLIReporter(
-        parameter_columns=["lr", "batch_size"],
-        metric_columns=["loss", "mean_accuracy", "training_iteration"])
-
-    analysis = tune.run(
-        tune_model, config=tune_configs, resources_per_trial={'gpu': 1, 'cpu': 4})
-
+    tune_cifar_asha()
     
