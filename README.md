@@ -5,11 +5,11 @@ Currently mostly covers classification with a little bit of detection.
 
 # Requirements
 
-* PyTorch 1.5.0
-* Torchvision 0.6.0
+* PyTorch 1.7.0
+* Torchvision 0.8.0
 * Nvidia Dali 0.21.0
 * Weights and Biases Library
-* PyTorch Lightining
+* PyTorch Lightining 1.1.2
 * Ablumentations
 
 # Notes
