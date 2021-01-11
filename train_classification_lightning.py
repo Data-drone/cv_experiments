@@ -98,7 +98,7 @@ def main(hparams, logger):
     early_stop_callback = pl.callbacks.EarlyStopping(
         monitor='val_acc',
         min_delta=0.00,
-        patience=15,
+        patience=20,
         verbose=True,
         mode='max'
     )
@@ -106,10 +106,10 @@ def main(hparams, logger):
     name = '{0}_{1}_cifar100-'.format(hparams.model, hparams.opt)
 
     save_checkpint_callback = ModelCheckpoint(
-        monitor='val_loss',
+        monitor='val_acc',
         filepath = 'saved_model/' + name + '{epoch}-{val_loss:.2f}-{val_acc:.2f}',
         save_top_k = 2,
-        mode='min',
+        mode='max',
         verbose=False
     )
 
@@ -119,17 +119,10 @@ def main(hparams, logger):
     # ------------------------
     # 2 INIT TRAINER
     # ------------------------
-    trainer = pl.Trainer(
-        max_epochs=hparams.epochs,
-        gpus=hparams.gpus,
-        distributed_backend=hparams.distributed_backend,
-        precision=16 if hparams.use_16bit else 32,
-        min_epochs=50,
-        accumulate_grad_batches = 1,
+    trainer = pl.Trainer().from_argparse_args(hparams, accumulate_grad_batches = 1,
         checkpoint_callback = save_checkpint_callback,
         callbacks=[early_stop_callback, lr_monitor],
-        logger=[logger] # , additional_logger
-    )
+        logger=[logger])
 
     # ------------------------
     # 3 START TRAINING
@@ -166,10 +159,12 @@ if __name__ == '__main__':
         help='supports three options dp, ddp, ddp2'
     )
     parent_parser.add_argument(
-        '--use_16bit',
-        dest='use_16bit',
-        action='store_true',
-        help='if true uses 16 bit precision'
+        '--precision',
+        dest='precision',
+        type=int,
+        default=32,
+        choices=[16,32],
+        help='set the precision 16 or 32 by default'
     )
 
     # should I have this for saving configs and models?
