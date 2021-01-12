@@ -1,4 +1,5 @@
 #### train classification with ignite
+# old ignite test script
 
 from argparse import ArgumentParser
 from typing import Sequence

@@ -19,7 +19,17 @@ some data pipelines leverage Nvidia DALI and APEX libraries
 
 Main entry point is via the train_xxx scripts
 
+To only use certain GPUs
+
+```{bash}
+
+# x is the gpu number
+CUDA_VISIBLE_DEVICES=x python train_classification_lightning.py 
+
+```
+
 # ToDo
 
 Test Hyperparam Tuning
 Incorporate some Viewing results notebooks for trained models
+
