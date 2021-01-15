@@ -75,6 +75,8 @@ class BasicPipe(LightningDataModule):
             transform = self.val_transforms
         )
 
+        self.dims = tuple(self.train_data[0][0].shape)
+
     def train_dataloader(self):
         return DataLoader(self.train_data, batch_size=self.hparams['batch_size'], 
                                 num_workers=self.hparams['nworkers'])

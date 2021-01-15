@@ -22,6 +22,8 @@ from pytorch_lightning.core import LightningModule
 from torch.optim.lr_scheduler import CyclicLR
 from learning_rate_schedulers.onecyclelr import OneCycleLR
 
+import logging
+lightning_console_log = logging.getLogger("lightning")
 
 ## lightning wrapper around cvision
 class LightningModel(LightningModule):
@@ -70,6 +72,11 @@ class LightningModel(LightningModule):
         self.vl_accuracy = pl.metrics.Accuracy()
         self.test_accuracy = pl.metrics.Accuracy()
 
+        # for tensorboard graph logger
+        #self.example_input_array = torch.rand((self.input_dim))
+        self.example_input_array = torch.rand([1,3,250,250])
+        #self.register_buffer("example_input_array", torch.rand([1,3,250,250]))
+
     def forward(self, x):
 
         return self.model(x)
@@ -83,9 +90,11 @@ class LightningModel(LightningModule):
         x, y = batch
         y_hat = self(x)
         loss = self.criterion(y_hat, y) # this is the criterion
-
+        acc1, acc5 = self.__accuracy(y_hat, y, topk=(1,5))
         self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         self.log('train_acc', self.tr_accuracy(y_hat, y), on_step=True, logger=True, sync_dist=True)
+        self.log('train_acc1', acc1, on_step=True, prog_bar=True, on_epoch=True, logger=True)
+        self.log('train_acc5', acc5, on_step=True, on_epoch=True, logger=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -96,11 +105,33 @@ class LightningModel(LightningModule):
         x, y = batch
         y_hat = self(x)
         val_loss = self.criterion(y_hat, y) # this is the criterion
-        
+        acc1, acc5 = self.__accuracy(y_hat, y, topk=(1, 5))        
         self.log('val_loss', val_loss, on_step=True, on_epoch=True, sync_dist=True)
         self.log('val_acc', self.vl_accuracy(y_hat, y), on_step=True, logger=True, sync_dist=True)
+        self.log('val_acc1', acc1, on_step=True, prog_bar=True, on_epoch=True)
+        self.log('val_acc5', acc5, on_step=True, on_epoch=True)
+
+    # from https://github.com/PyTorchLightning/pytorch-lightning/blob/master/pl_examples/domain_templates/imagenet.py
+    @staticmethod
+    def __accuracy(output, target, topk=(1,)):
+        """Computes the accuracy over the k top predictions for the specified values of k"""
+        with torch.no_grad():
+            maxk = max(topk)
+            batch_size = target.size(0)
+
+            _, pred = output.topk(maxk, 1, True, True)
+            pred = pred.t()
+            correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+            res = []
+            for k in topk:
+                correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
+                res.append(correct_k.mul_(100.0 / batch_size))
+            return res
 
     def training_epoch_end(self, outs):
+        if self.current_epoch==0:
+            self.logger[0].experiment.add_graph(self, torch.rand([1,3,250,250]).cuda())
         self.log('train_acc_epoch', self.tr_accuracy.compute(), logger=True, sync_dist=True)
 
     def validation_epoch_end(self, outs):
@@ -115,6 +146,18 @@ class LightningModel(LightningModule):
 
     def test_epoch_end(self, outputs):
         self.log('test_acc_epoch', self.test_accuracy.compute(), logger=True, sync_dist=True)
+
+    def on_after_backward(self):
+        # adding value histograms for tensorboard
+        if self.trainer.global_step % 25 == 0 and self.current_epoch >= 1:  # don't make the tf file huge
+            params = self.state_dict()
+            for k, v in params.items():
+                lightning_console_log.info( "key: {0}, values type: {1}".format(k, v.grad))
+                # added to indexing as we have fed in the loggers as a list
+                self.logger[0].experiment.add_histogram(
+                    # v.grad?
+                    tag=k, values=v, global_step=self.trainer.global_step
+                )
 
     #
     # TRAINING SETUP SECTIONS

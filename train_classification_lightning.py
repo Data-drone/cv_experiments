@@ -17,6 +17,10 @@ from models.lightning_classification import LightningModel
 from data_pipeline.lightning_dali_loaders import PLDaliPipe
 from data_pipeline.basic_lightning_dataloader import BasicPipe
 
+
+import logging
+lightning_console_log = logging.getLogger("lightning")
+logging.getLogger("lightning").setLevel(logging.INFO)
 #from lr_schedulers.onecyclelr import OneCycleLR
 
 SEED = 2334
@@ -115,7 +119,6 @@ def main(hparams, logger):
 
     lr_monitor = LearningRateMonitor(logging_interval='step')
 
-    
     # ------------------------
     # 2 INIT TRAINER
     # ------------------------
@@ -131,6 +134,16 @@ def main(hparams, logger):
     #trainer.fit(model, dali_pipe)
     
     normal_pipe = BasicPipe(hparams, traindir, valdir, mean, std)
+
+    # log graph for tb?
+    # nopes the dims isn't populated till setup is called within the train loop...
+    #input_shape = normal_pipe.dims
+    #print(input_shape)
+    #example_input = torch.rand(input_shape)
+    #example_input = torch.rand([1,3,32,32])
+    #print(example_input.shape)
+    #logger.log_graph(model, example_input)
+
     trainer.fit(model, normal_pipe)
 
 if __name__ == '__main__':
@@ -141,7 +154,7 @@ if __name__ == '__main__':
 
     #root_dir = os.path.dirname(os.path.realpath(__file__))
     #wandb_logger = WandbLogger(project='lightning_test')
-    tb_logger = TensorBoardLogger("tb_logs", name="cv_exp")
+    tb_logger = TensorBoardLogger("tb_logs", name="cv_exp", log_graph=True)
 
     parent_parser = ArgumentParser(add_help=False)
 
