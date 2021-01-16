@@ -19,6 +19,9 @@ import pytorch_lightning as pl
 from pytorch_lightning import _logger as log
 from pytorch_lightning.core import LightningModule
 
+## adding in timm models
+import timm
+
 from torch.optim.lr_scheduler import CyclicLR
 from learning_rate_schedulers.onecyclelr import OneCycleLR
 
@@ -39,7 +42,9 @@ class LightningModel(LightningModule):
                             if name.islower() and not name.startswith("__")
                             and callable(local_models.__dict__[name]))
 
-        valid_models = model_names + local_model_names
+        timm_model_names = timm_model_names = ['timm_' + x for x in timm.list_models()] 
+
+        valid_models = model_names + local_model_names + timm_model_names
 
         self.hparams = vars(hparams) if type(hparams) is not dict else hparams
 
@@ -59,6 +64,10 @@ class LightningModel(LightningModule):
             cv_model = local_models.__dict__[self.hparams['model']](pretrained=False,
                                                         activation=self.act_funct,
                                                     num_classes=self.hparams['num_classes'])
+        elif self.hparams['model'] in timm_model_names:
+            # we need this as timm overlaps with other model names sometimes
+            timm_name = self.hparams['model'][5:]
+            cv_model = timm.create_model(timm_name, pretrained=False, num_classes=self.hparams['num_classes'])
 
         if self.hparams['model'] == 'inception_v3':
             cv_model.aux_logits=False
@@ -150,13 +159,13 @@ class LightningModel(LightningModule):
     def on_after_backward(self):
         # adding value histograms for tensorboard
         if self.trainer.global_step % 25 == 0 and self.current_epoch >= 1:  # don't make the tf file huge
-            params = self.state_dict()
-            for k, v in params.items():
-                lightning_console_log.info( "key: {0}, values type: {1}".format(k, v.grad))
+            params = self.named_parameters()
+            for k, v in params:
+                # lightning_console_log.info( "key: {0}, values type: {1}".format(k, v.grad))
                 # added to indexing as we have fed in the loggers as a list
                 self.logger[0].experiment.add_histogram(
                     # v.grad?
-                    tag=k, values=v, global_step=self.trainer.global_step
+                    tag=k, values=v.grad, global_step=self.trainer.global_step
                 )
 
     #
