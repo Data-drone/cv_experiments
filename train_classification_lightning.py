@@ -20,7 +20,7 @@ from data_pipeline.basic_lightning_dataloader import BasicPipe
 
 import logging
 lightning_console_log = logging.getLogger("lightning")
-logging.getLogger("lightning").setLevel(logging.INFO)
+lightning_console_log.setLevel(logging.DEBUG)
 #from lr_schedulers.onecyclelr import OneCycleLR
 
 SEED = 2334
@@ -125,7 +125,8 @@ def main(hparams, logger):
     trainer = pl.Trainer().from_argparse_args(hparams, accumulate_grad_batches = 1,
         checkpoint_callback = save_checkpint_callback,
         callbacks=[early_stop_callback, lr_monitor],
-        logger=[logger])
+        logger=[logger]) #,
+        #track_grad_norm=2)
 
     # ------------------------
     # 3 START TRAINING
