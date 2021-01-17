@@ -27,7 +27,7 @@ class AlbumentationTransform(object):
 
 
 class BasicPipe(LightningDataModule):
-    def __init__(self, hparams, train_datadir, val_datadir, mean, std):
+    def __init__(self, hparams, train_datadir, val_datadir, mean, std, input_size=(300,300)):
         super().__init__()
 
         self.hparams = vars(hparams) if type(hparams) is not dict else hparams
@@ -39,7 +39,7 @@ class BasicPipe(LightningDataModule):
         data_transform_normal = transforms.Compose([
             transforms.Resize((300,300)),
             #transforms.CenterCrop((100, 100)),
-            transforms.RandomCrop((250, 250), padding=4),
+            transforms.RandomCrop(input_size, padding=4),
             transforms.RandomHorizontalFlip(p=0.5),
             #transforms.RandomRotation(degrees=(-90, 90)),
             #transforms.RandomVerticalFlip(p=0.5),
@@ -55,7 +55,7 @@ class BasicPipe(LightningDataModule):
             ])
     
         val_data_transform = transforms.Compose([
-                transforms.Resize((300,300)),
+                transforms.Resize(input_size),
                 transforms.ToTensor(),
                 transforms.Normalize(mean, std)
             ])

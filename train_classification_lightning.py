@@ -134,7 +134,7 @@ def main(hparams, logger):
     #dali_pipe = PLDaliPipe(hparams, traindir, valdir, [*mean], [*std])
     #trainer.fit(model, dali_pipe)
     
-    normal_pipe = BasicPipe(hparams, traindir, valdir, mean, std)
+    normal_pipe = BasicPipe(hparams, traindir, valdir, mean, std, (224,224))
 
     # log graph for tb?
     # nopes the dims isn't populated till setup is called within the train loop...

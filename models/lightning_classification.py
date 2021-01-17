@@ -69,6 +69,7 @@ class LightningModel(LightningModule):
             timm_name = self.hparams['model'][5:]
             cv_model = timm.create_model(timm_name, pretrained=False, num_classes=self.hparams['num_classes'])
 
+
         if self.hparams['model'] == 'inception_v3':
             cv_model.aux_logits=False
 
@@ -83,7 +84,7 @@ class LightningModel(LightningModule):
 
         # for tensorboard graph logger
         #self.example_input_array = torch.rand((self.input_dim))
-        self.example_input_array = torch.rand([1,3,250,250])
+        self.example_input_array = torch.rand([1,3,224,224])
         #self.register_buffer("example_input_array", torch.rand([1,3,250,250]))
 
     def forward(self, x):
@@ -140,10 +141,11 @@ class LightningModel(LightningModule):
 
     def training_epoch_end(self, outs):
         if self.current_epoch==0:
-            self.logger[0].experiment.add_graph(self, torch.rand([1,3,250,250]).cuda())
+            self.logger[0].experiment.add_graph(self, self.example_input_array.cuda())
         self.log('train_acc_epoch', self.tr_accuracy.compute(), logger=True, sync_dist=True)
 
     def validation_epoch_end(self, outs):
+        #self.logger[0].experiment.add_pr_curve('pr_curve', )
         self.log('val_acc_epoch', self.vl_accuracy.compute(), logger=True, sync_dist=True)
 
     def test_step(self, batch, batch_idx):
