@@ -3,14 +3,17 @@ import torch
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader, random_split
 from torch.nn import functional as F
-from torchvision.datasets import FashionMNIST
+from torchvision.datasets import CIFAR100
 from torchvision import transforms
+from torchvision import models 
+from torch.nn import CrossEntropyLoss
 import os
 
 class LightningMNISTClassifier(pl.LightningModule):
     """
     This has been adapted from
     https://towardsdatascience.com/from-pytorch-to-pytorch-lightning-a-gentle-introduction-b371b7caaf09
+    adjusted for cifar100
     """
 
     def __init__(self, config, data_dir=None):
@@ -18,50 +21,26 @@ class LightningMNISTClassifier(pl.LightningModule):
 
         self.data_dir = data_dir or os.getcwd()
 
-        self.layer_1_size = config["layer_1_size"]
-        self.layer_2_size = config["layer_2_size"]
-        self.layer_3_size = config["layer_3_size"]
         self.lr = config["lr"]
         self.batch_size = config["batch_size"]
+        #self.momentum = config["momentum"]
 
         # mnist images are (1, 28, 28) (channels, width, height)
-        self.layer_1 = torch.nn.Linear(28 * 28, self.layer_1_size)
-        self.layer_2 = torch.nn.Linear(self.layer_1_size, self.layer_2_size)
-        self.layer_3 = torch.nn.Linear(self.layer_2_size, self.layer_3_size)
-        self.layer_4 = torch.nn.Linear(self.layer_3_size, 10)
+        self.model = models.resnet34(pretrained=False)
+
+        self.criterion = CrossEntropyLoss()
+        self.tr_accuracy = pl.metrics.Accuracy()
+        self.vl_accuracy = pl.metrics.Accuracy()
+        self.test_accuracy = pl.metrics.Accuracy()
 
     def forward(self, x):
-        batch_size, channels, width, height = x.size()
-        x = x.view(batch_size, -1)
-
-        x = self.layer_1(x)
-        x = torch.relu(x)
-
-        x = self.layer_2(x)
-        x = torch.relu(x)
-
-        x = self.layer_3(x)
-        x = torch.relu(x)
-
-        x = self.layer_4(x)
-        x = torch.log_softmax(x, dim=1)
-
-        return x
-
-    def cross_entropy_loss(self, logits, labels):
-        return F.nll_loss(logits, labels)
-
-    def accuracy(self, logits, labels):
-        _, predicted = torch.max(logits.data, 1)
-        correct = (predicted == labels).sum().item()
-        accuracy = correct / len(labels)
-        return torch.tensor(accuracy)
+        return self.model(x)
 
     def training_step(self, train_batch, batch_idx):
         x, y = train_batch
         logits = self.forward(x)
-        loss = self.cross_entropy_loss(logits, y)
-        accuracy = self.accuracy(logits, y)
+        loss = self.criterion(logits, y)
+        accuracy = self.tr_accuracy(logits, y)
 
         self.log("ptl/train_loss", loss)
         self.log("ptl/train_accuracy", accuracy)
@@ -70,29 +49,29 @@ class LightningMNISTClassifier(pl.LightningModule):
     def validation_step(self, val_batch, batch_idx):
         x, y = val_batch
         logits = self.forward(x)
-        loss = self.cross_entropy_loss(logits, y)
-        accuracy = self.accuracy(logits, y)
+        loss = self.criterion(logits, y)
+        accuracy = self.vl_accuracy(logits, y)
         return {"val_loss": loss, "val_accuracy": accuracy}
 
     def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
         avg_acc = torch.stack([x["val_accuracy"] for x in outputs]).mean()
         self.log("ptl/val_loss", avg_loss)
-        self.log("ptl/val_accuracy", avg_acc)
+        self.log("ptl/val_accuracy", self.vl_accuracy.compute())
 
     @staticmethod
     def download_data(data_dir):
         transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.5, ), (0.5, ))
+            transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
         ])
-        return FashionMNIST(data_dir, train=True, download=True, transform=transform)
+        return CIFAR100(data_dir, train=True, download=True, transform=transform)
 
     def prepare_data(self):
         mnist_train = self.download_data(self.data_dir)
-
+        print(len(mnist_train))
         self.mnist_train, self.mnist_val = random_split(
-            mnist_train, [55000, 5000])
+            mnist_train, [45000, 5000])
 
     def train_dataloader(self):
         return DataLoader(self.mnist_train, batch_size=int(self.batch_size), num_workers=4)
@@ -108,7 +87,6 @@ class LightningMNISTClassifier(pl.LightningModule):
 def train_mnist(config):
     model = LightningMNISTClassifier(config)
     trainer = pl.Trainer(max_epochs=50, gpus=1) #, show_progress_bar=False)
-
     trainer.fit(model)
 
 import shutil
@@ -146,9 +124,6 @@ def tune_mnist_asha(num_samples=10, num_epochs=50, gpus_per_trial=0, cpus_per_tr
     LightningMNISTClassifier.download_data(data_dir)
 
     config = {
-        "layer_1_size": tune.choice([32, 64, 128]),
-        "layer_2_size": tune.choice([64, 128, 256]),
-        "layer_3_size": tune.choice([128, 256, 512]),
         "lr": tune.loguniform(1e-4, 1e-1),
         "batch_size": tune.choice([32, 64, 128]),
     }
@@ -159,7 +134,7 @@ def tune_mnist_asha(num_samples=10, num_epochs=50, gpus_per_trial=0, cpus_per_tr
         reduction_factor=2)
 
     reporter = CLIReporter(
-        parameter_columns=["layer_1_size", "layer_2_size", "layer_3_size", "lr", "batch_size"],
+        parameter_columns=["lr", "batch_size"],
         metric_columns=["loss", "mean_accuracy", "training_iteration"])
 
     analysis = tune.run(
@@ -187,14 +162,11 @@ def tune_mnist_asha(num_samples=10, num_epochs=50, gpus_per_trial=0, cpus_per_tr
 #tune_mnist_asha(cpus_per_trial=4, gpus_per_trial=1)
 
 single_config = {
-    'layer_1_size': 128,
-    'layer_2_size': 256,
-    'layer_3_size': 512,
     'lr': 1e-4,
     'batch_size': 64 
 }
 
-# uses about 30% of gpu
+# uses about 60% of gpu
 #train_mnist(single_config)
 
 # 
